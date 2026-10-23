@@ -6,5 +6,6 @@ pandas
 torch
 torchvision
 transformers
+scipy
 pycocotools
 jsonschema
