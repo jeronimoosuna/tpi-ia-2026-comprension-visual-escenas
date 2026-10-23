@@ -51,6 +51,15 @@ Por indicación de la cátedra, la consigna exige **justificar** la resolución 
 
 Validado con un caso sintético de conteo manual antes de usarse sobre datos reales.
 
+### 3.3 Segmentación (SAM2)
+
+Modelo: **SAM2.1** (`facebook/sam2.1-hiera-tiny`), vía la integración nativa en `transformers` (`Sam2Model`/`Sam2Processor`) — misma lógica que con el detector: evita clonar/compilar el repo oficial de Meta (`facebookresearch/sam2`), que no es pip-instalable de forma simple. Se eligió el checkpoint **`tiny`** (el más chico de la familia SAM2.1) para minimizar tiempo de inferencia, dado el volumen de cajas a segmentar (una por cada detección post-NMS: 7293 en todo el dataset de desarrollo).
+
+- `src/segmentation.py::segment_with_sam2`: recibe una imagen y una lista de cajas (`xywh`, mismo formato que `detection.py`), las pasa como *prompts* de caja al modelo en un único forward por imagen (todas las cajas de esa imagen juntas, no una por una), y devuelve una máscara booleana por caja del mismo tamaño que la imagen original. Se usa `multimask_output=False` (una sola máscara "mejor" por caja, no las 3 variantes que SAM2 puede proponer por ambigüedad).
+- `src/segmentation.py::mask_to_rle` / `rle_to_mask`: codificación/decodificación RLE no comprimida en orden column-major (Fortran), tal como exige `scene_schema.json` (`mask.size`, `mask.counts`). Implementación propia (no se usó `pycocotools` para esto, para tener control total del orden de recorrido exigido por el schema).
+
+Verificado con inferencia real: se segmentaron cajas detectadas de verdad sobre una imagen del dataset (áreas de máscara resultantes siempre menores pero coherentes con el área de la caja que las originó, como se espera de una segmentación real del objeto dentro de su bounding box). La codificación RLE se validó con un **round-trip** (`mask_to_rle` → `rle_to_mask` → comparación con la máscara original) sobre las máscaras reales obtenidas y sobre casos borde (máscara vacía, máscara completa, lista de cajas vacía).
+
 ## 4. Resultados
 
 ### 4.1 Detección — baseline (`confidence_threshold=0.1`, `nms_iou_threshold=0.5`)

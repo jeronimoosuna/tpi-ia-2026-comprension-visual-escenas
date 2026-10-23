@@ -28,6 +28,8 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
 | Resolución de entrada: **960×960 fija**, la que usa OWLv2 por defecto | Es la resolución nativa del checkpoint (embeddings posicionales calibrados para ese tamaño); además el resize es no-uniforme (sin letterbox) y el dataset tiene relación de aspecto muy variada (0.45–1.78), así que cambiar la resolución sin re-calibrar el modelo arriesga más de lo que soluciona. Justificación completa en `REPORTE.md` sección 3.1. La cátedra aclaró que este punto solo exige justificación, no experimentación — el experimento controlado (sección 4) evalúa el umbral de confianza en su lugar. |
 | Métrica `detection_f1` con política **LVIS-aware** (positiva / `neg_category_ids` / `not_exhaustive_category_ids` / no verificada) | Tomada literalmente del `README.md` del dataset de desarrollo (no es una invención nuestra) — ver el docstring de `src/metrics.detection_f1` para la lógica exacta. |
 | `src/geometry.py` con `bbox_iou` compartido | Lo necesitan `eda.py` (oclusión), `detection.py` (NMS) y `metrics.py` (F1) — evita triplicar la misma función. |
+| Segmentador: **SAM2.1 tiny** (`facebook/sam2.1-hiera-tiny`, HF `transformers`, no el repo oficial de Meta) | Misma lógica que con el detector: evita clonar/compilar `facebookresearch/sam2`. Checkpoint `tiny` (el más chico de la familia) por volumen de cajas a segmentar (7293 tras NMS) y presupuesto de cómputo. |
+| `mask_to_rle`/`rle_to_mask` implementados a mano (no `pycocotools`) | El schema exige RLE no comprimido en orden column-major con `counts` como lista de enteros plana — no es el formato comprimido que da `pycocotools.mask.encode` por defecto, así que se implementó directo para controlar el formato exacto. Verificado con round-trip sobre máscaras reales. |
 | Repo git consolidado en `/home/jeronimo-osuna/IA/TPI/.git` (normal) | La carpeta original estaba en un disco NTFS que no soporta `chmod` (rompe git); se usó `--separate-git-dir` como workaround temporal y se consolidó al mover el proyecto a un filesystem nativo. Detalle completo en el historial de chat, no en el repo. |
 | `REPORTE.md` se completa **incrementalmente**, no al final | Para no perder el razonamiento de cada decisión; pedido explícito del usuario a mitad de proyecto. |
 
@@ -38,12 +40,12 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
 - `src/geometry.py` — completo (`bbox_iou`).
 - `src/detection.py` — `detect_objects` y `suppress_duplicates` completos. Verificados con inferencia real sobre imágenes del dataset y un caso sintético de NMS.
 - `src/metrics.py::detection_f1` — completo, validado con un caso sintético calculado a mano antes de usarse sobre datos reales.
+- `src/segmentation.py` — `segment_with_sam2` (SAM2.1 tiny, vía `transformers`), `mask_to_rle`/`rle_to_mask` (RLE no comprimido column-major). Verificados con inferencia real sobre cajas detectadas de verdad + round-trip de la codificación RLE sobre máscaras reales y casos borde (vacía, completa, sin cajas). **Todavía no se corrió sobre las 120 imágenes completas** (solo sobre una imagen de prueba) — ver sección 8.
 - `scripts/run_eda.py`, `scripts/run_detection.py` — funcionales, ya corridos de punta a punta.
-- `REPORTE.md` — secciones 1 (Portada, con integrantes/nro. de grupo **pendientes de completar**), 2 (Análisis del dataset, completa), 3.1-3.2 (Metodología de detección y de la métrica, completa salvo el punto de resolución de entrada — ver sección 5), 4.1 (Resultados de detección, completa). Secciones 5 y 6 parciales/pendientes.
-- Repo git: 4 commits, working tree limpio.
+- `REPORTE.md` — secciones 1 (Portada, con integrantes/nro. de grupo **pendientes de completar**), 2 (Análisis del dataset, completa), 3.1-3.3 (Metodología de detección, métrica y segmentación, completas), 4.1 (Resultados de detección, completa; **resultados de segmentación todavía no**). Secciones 5 y 6 parciales/pendientes.
+- Repo git: 6 commits, working tree limpio, con remoto privado en GitHub (ver sección 6).
 
 **Solo esqueleto (`raise NotImplementedError`), sin probar — todo lo que queda del plan:**
-- `src/segmentation.py` (`segment_with_sam2`, `mask_to_rle`)
 - `src/scene_builder.py` (`build_scene_json`)
 - `src/properties.py` (`compute_centroid`, `compute_area_ratio`, `compute_position`, `compute_size`, `compute_dominant_color`, `compute_relations`) — las constantes `POSITIONS`/`SIZES`/`PREDICATES` ya están cargadas con los valores exactos del `scene_schema.json` real.
 - `src/tracing.py` (`Tracer`)
@@ -80,7 +82,7 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
 
 ## 7. Tareas pendientes (en el orden del plan original)
 
-1. **Segmentación SAM2** (`src/segmentation.py`) — usar como prompts las bboxes ya detectadas en `reports/detection/predictions.json`.
+1. Correr `segment_with_sam2` sobre las 120 imágenes completas (análogo a `scripts/run_detection.py`, pero para segmentación) — a estimar ~20-25 min en CPU local dado el volumen de cajas (7293 tras NMS); no se corrió todavía, solo se validó el módulo sobre una imagen de prueba.
 2. Construcción de `SceneJSON` (`src/scene_builder.py`).
 3. Propiedades derivadas de máscaras (`src/properties.py`): centroide, `area_ratio`, `position` (grilla 3×3), `size`, color dominante, relaciones espaciales.
 4. Trazabilidad/logging (`src/tracing.py`).
@@ -93,6 +95,6 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
 
 ## 8. Próximo paso recomendado
 
-**Segmentación con SAM2** (ítem 1 de la lista de arriba) — es el siguiente eslabón natural de la pipeline, ya hay bboxes reales en `reports/detection/predictions.json` para usar como prompts, y desbloquea tanto `scene_builder.py` como `properties.py`.
+Correr la segmentación sobre el dataset completo (ítem 1 de arriba) y recién después avanzar con `scene_builder.py`, que necesita las máscaras reales (no solo las de la imagen de prueba) para poder construirse y probarse en serio.
 
 Antes de arrancar, vale la pena resolver rápido el punto 1 (resolución de entrada) porque es barato y cierra un requisito explícito del enunciado que quedó suelto.
