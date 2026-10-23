@@ -25,7 +25,7 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
 | Vocabulario: las **120 categorías completas** de `annotations.json`, en un solo batch de texto por imagen | No sabemos de antemano qué categorías aparecen en las imágenes de test; el EDA mostró cola larga, así que no tiene sentido recortar el vocabulario. |
 | Umbral de confianza baseline: **0.1** (permisivo) | El EDA mostró que la mediana de `area_ratio` es ≈0.003 (objetos muy chicos) → un umbral alto mataría el recall. |
 | NMS **por categoría** (no global), IoU>0.5 | Un NMS cruzado entre categorías borraría objetos distintos que se superponen legítimamente (ej. persona + mochila). El EDA de oclusión (13% de instancias con IoU>0.3 con su vecino) anticipó que iba a hacer falta. |
-| Resolución de entrada: **960×960 fija**, la que usa OWLv2 por defecto | **No es una decisión justificada, es un hueco detectado y todavía no resuelto** — ver sección 5. El enunciado pide explícitamente justificar este punto. |
+| Resolución de entrada: **960×960 fija**, la que usa OWLv2 por defecto | Es la resolución nativa del checkpoint (embeddings posicionales calibrados para ese tamaño); además el resize es no-uniforme (sin letterbox) y el dataset tiene relación de aspecto muy variada (0.45–1.78), así que cambiar la resolución sin re-calibrar el modelo arriesga más de lo que soluciona. Justificación completa en `REPORTE.md` sección 3.1. La cátedra aclaró que este punto solo exige justificación, no experimentación — el experimento controlado (sección 4) evalúa el umbral de confianza en su lugar. |
 | Métrica `detection_f1` con política **LVIS-aware** (positiva / `neg_category_ids` / `not_exhaustive_category_ids` / no verificada) | Tomada literalmente del `README.md` del dataset de desarrollo (no es una invención nuestra) — ver el docstring de `src/metrics.detection_f1` para la lógica exacta. |
 | `src/geometry.py` con `bbox_iou` compartido | Lo necesitan `eda.py` (oclusión), `detection.py` (NMS) y `metrics.py` (F1) — evita triplicar la misma función. |
 | Repo git consolidado en `/home/jeronimo-osuna/IA/TPI/.git` (normal) | La carpeta original estaba en un disco NTFS que no soporta `chmod` (rompe git); se usó `--separate-git-dir` como workaround temporal y se consolidó al mover el proyecto a un filesystem nativo. Detalle completo en el historial de chat, no en el repo. |
@@ -64,7 +64,7 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
 
 ## 5. Problemas conocidos / huecos detectados
 
-1. **Resolución de entrada de OWLv2 sin justificar.** El enunciado exige justificar explícitamente este punto para el módulo de detección. Verificamos que OWLv2 usa 960×960 fijo (resize+padding, sin importar el tamaño original) por defecto del `processor`, pero no se comparó contra ninguna alternativa ni se escribió la justificación en el reporte. Es el hueco más concreto pendiente ahora mismo.
+1. ~~Resolución de entrada de OWLv2 sin justificar.~~ **Resuelto** (ver `REPORTE.md` sección 3.1): es un resize no-uniforme a 960×960 fijo, sin letterbox; se justificó mantenerla nativa en vez de experimentar con ella, por indicación explícita de la cátedra de que solo exige justificación, no comparación.
 2. Discrepancia `submission.csv` (PDF) vs `solution.csv` (Kaggle) sin resolver — confirmar con la cátedra.
 3. La carpeta original del proyecto estaba en un disco NTFS (`/mnt/datos/...`) que no soporta `chmod`; si en algún momento se vuelve a trabajar desde ese disco, git va a volver a fallar. Ya no aplica mientras el proyecto siga en `/home/jeronimo-osuna/IA/TPI` (filesystem nativo).
 4. `~/.gitconfig` tiene entradas `safe.directory` de otro proyecto del usuario (`BitLogic/backoffice`) — no tocar, no están relacionadas con este repo.
@@ -76,23 +76,23 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
 - El `pip install` directo con `python3 -m pip` falla en este sistema (Debian/Ubuntu "externally-managed-environment") — siempre usar el venv.
 - `data/development/` (120 imágenes + `annotations.json`), `data/tpi_ia_2026_competition_public/` (60 imágenes de test) y `data/tpi_2026_qa_public/` ya están descargados y organizados localmente, pero **gitignored** (pesan demasiado). `data/scene_schema.json` y `data/sample_submission.csv` sí están trackeados en git — son la referencia autoritativa del contrato, **no hace falta volver a scrapear Kaggle para leerlos**, ya están en el repo tal cual los bajó Kaggle.
 - Internet sí está disponible desde este entorno (se pudo descargar el modelo OWLv2 de HuggingFace sin problema).
+- El repo tiene remoto en GitHub, **privado**: [`github.com/jeronimoosuna/tpi-ia-2026-comprension-visual-escenas`](https://github.com/jeronimoosuna/tpi-ia-2026-comprension-visual-escenas). `origin/master` rastreado, un `git push` normal alcanza para subir commits nuevos.
 
 ## 7. Tareas pendientes (en el orden del plan original)
 
-1. Cerrar el hueco de resolución de entrada en `REPORTE.md` (sección 5 de este documento).
-2. **Segmentación SAM2** (`src/segmentation.py`) — usar como prompts las bboxes ya detectadas en `reports/detection/predictions.json`.
-3. Construcción de `SceneJSON` (`src/scene_builder.py`).
-4. Propiedades derivadas de máscaras (`src/properties.py`): centroide, `area_ratio`, `position` (grilla 3×3), `size`, color dominante, relaciones espaciales.
-5. Trazabilidad/logging (`src/tracing.py`).
-6. Motor de QA determinista (`src/qa_engine.py`) — mínimo conteo y existencia.
-7. Completar métricas: `mask_f1`, `scene_json_consistency`, `qa_accuracy` (`detection_f1` ya está hecho).
-8. Generar y validar `submission.csv`/`solution.csv` final (80 filas).
-9. LLM liviano para `questions_llm` y descripción (`src/qa_llm.py`) — nivel promoción.
-10. Experimento controlado vs. línea base (ej. umbral de confianza alternativo) — Tarea 12 del plan, incluye resolver el punto 1 de esta lista con datos en vez de solo texto.
-11. Reporte técnico final + consolidación de todo en una única notebook de Kaggle (el usuario la sube manualmente).
+1. **Segmentación SAM2** (`src/segmentation.py`) — usar como prompts las bboxes ya detectadas en `reports/detection/predictions.json`.
+2. Construcción de `SceneJSON` (`src/scene_builder.py`).
+3. Propiedades derivadas de máscaras (`src/properties.py`): centroide, `area_ratio`, `position` (grilla 3×3), `size`, color dominante, relaciones espaciales.
+4. Trazabilidad/logging (`src/tracing.py`).
+5. Motor de QA determinista (`src/qa_engine.py`) — mínimo conteo y existencia.
+6. Completar métricas: `mask_f1`, `scene_json_consistency`, `qa_accuracy` (`detection_f1` ya está hecho).
+7. Generar y validar `submission.csv`/`solution.csv` final (80 filas).
+8. LLM liviano para `questions_llm` y descripción (`src/qa_llm.py`) — nivel promoción.
+9. Experimento controlado vs. línea base sobre el **umbral de confianza** (ej. 0.1 vs 0.3) — Tarea 12 del plan.
+10. Reporte técnico final + consolidación de todo en una única notebook de Kaggle (el usuario la sube manualmente).
 
 ## 8. Próximo paso recomendado
 
-**Segmentación con SAM2** (ítem 2 de la lista de arriba) — es el siguiente eslabón natural de la pipeline, ya hay bboxes reales en `reports/detection/predictions.json` para usar como prompts, y desbloquea tanto `scene_builder.py` como `properties.py`.
+**Segmentación con SAM2** (ítem 1 de la lista de arriba) — es el siguiente eslabón natural de la pipeline, ya hay bboxes reales en `reports/detection/predictions.json` para usar como prompts, y desbloquea tanto `scene_builder.py` como `properties.py`.
 
 Antes de arrancar, vale la pena resolver rápido el punto 1 (resolución de entrada) porque es barato y cierra un requisito explícito del enunciado que quedó suelto.

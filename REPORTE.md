@@ -32,7 +32,14 @@ Detector: **OWLv2** (`google/owlv2-base-patch16-ensemble`, vía `transformers`).
 - `src/detection.py::detect_objects`: corre el modelo con el vocabulario completo, devuelve `{category_id, confidence, bbox}` por detección cruda.
 - `src/detection.py::suppress_duplicates`: NMS por categoría (no cross-categoría, para no suprimir objetos distintos que se superponen legítimamente, ej. "persona" y "mochila").
 
-**Baseline elegido:** `confidence_threshold=0.1`, `nms_iou_threshold=0.5`. Es un umbral permisivo (prioriza recall) elegido como punto de partida dado que la mayoría de los objetos del dataset son chicos (ver EDA) — se compara contra una alternativa más conservadora en el proceso experimental (sección 4/5, pendiente).
+**Baseline elegido:** `confidence_threshold=0.1`, `nms_iou_threshold=0.5`. Es un umbral permisivo (prioriza recall) elegido como punto de partida dado que la mayoría de los objetos del dataset son chicos (ver EDA) — se compara contra una alternativa más conservadora en el proceso experimental (sección 4/5).
+
+**Resolución de entrada: 960×960 (la nativa del checkpoint, sin modificar).** `Owlv2ImageProcessorPil.resize` redimensiona cada imagen a `(960, 960)` de forma directa — se verificó en el código fuente que **no hace letterbox/padding preservando proporción**, sino un resize no uniforme (estira ancho y alto por separado hasta el cuadrado objetivo). Se decidió no override-earla por dos motivos:
+
+1. El backbone ViT del checkpoint `owlv2-base-patch16-ensemble` fue entrenado/fine-tuneado específicamente a esa resolución; los embeddings posicionales y el grid de patches están calibrados para ese tamaño. Cambiarla implicaría interpolar embeddings posicionales fuera de la distribución de entrenamiento, sin ninguna re-calibración de nuestro lado — riesgo de degradar la calidad de las cajas sin evidencia de que mejore.
+2. El dataset de desarrollo tiene relación de aspecto muy variada (mínimo 0.45, máximo 1.78, mediana 1.33 — solo 4 de 120 imágenes son aproximadamente cuadradas), así que el estiramiento a 960×960 **distorsiona la imagen en la mayoría de los casos**. Es una limitación conocida y aceptada del modelo preentrenado, no de nuestra implementación: pre-procesar nosotros mismos con letterbox antes de pasarle la imagen al processor cambiaría la distribución de entrada respecto a cómo se entrenó el modelo, con el mismo riesgo del punto anterior.
+
+Por indicación de la cátedra, la consigna exige **justificar** la resolución de entrada pero no obliga a experimentar específicamente con ella — la comparación controlada del proceso experimental (sección 4/5) evalúa en cambio el umbral de confianza, que es el parámetro donde el EDA (objetos predominantemente chicos) dio evidencia directa y accionable para comparar alternativas.
 
 ### 3.2 Métrica de detección
 
