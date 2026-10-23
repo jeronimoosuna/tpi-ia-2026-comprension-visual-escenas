@@ -1,0 +1,15 @@
+{
+  "precision": 0.5119675456389452,
+  "recall": 0.7050279329608938,
+  "f1": 0.5931844888366626,
+  "tp": 1262,
+  "fp": 1203,
+  "fn": 528,
+  "ignored_predictions": 4828,
+  "confidence_threshold": 0.1,
+  "nms_iou_threshold": 0.5,
+  "num_images": 120,
+  "num_predictions": 7293,
+  "total_time_seconds": 366.6510953903198,
+  "avg_time_per_image_seconds": 3.053348841269811
+}
