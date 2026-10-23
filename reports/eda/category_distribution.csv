@@ -1,0 +1,121 @@
+category_id,name,num_annotations,num_images
+26,book,46,7
+58,car,44,9
+104,box,40,7
+12,chair,40,8
+40,wheel,37,6
+3,pillow,31,9
+31,shoe,31,7
+17,person,29,9
+59,curtain,29,9
+74,cabinet,28,8
+20,sock,28,9
+22,bicycle,27,5
+50,knife,27,7
+56,hat,26,7
+43,table,24,8
+38,ski,24,7
+28,lamp,24,9
+79,jersey,24,6
+110,knob,24,5
+108,broccoli,24,3
+77,baseball cap,23,8
+5,jacket,23,8
+113,awning,23,7
+109,strap,23,9
+55,ski pole,22,7
+80,pole,22,4
+62,drawer,21,8
+14,napkin,21,9
+11,handle,20,6
+18,trousers,19,8
+86,mirror,19,7
+98,ski boot,19,6
+53,street sign,19,5
+75,taillight,18,5
+85,banana,17,4
+54,bowl,17,7
+37,flower arrangement,17,6
+30,glove,17,8
+117,flowerpot,17,7
+91,button,16,5
+36,short pants,16,8
+83,shirt,16,8
+8,traffic light,16,4
+6,signboard,16,6
+120,boot,16,4
+7,backpack,15,10
+27,sunglasses,15,6
+52,handbag,15,7
+90,spectacles,15,9
+115,banner,15,7
+16,flag,14,6
+107,computer monitor,14,7
+51,watch,14,10
+44,drinking glass,14,6
+41,faucet,14,10
+21,vase,14,7
+68,fork,14,8
+57,plate,14,7
+95,baseball glove,14,6
+102,windshield wiper,13,6
+45,headlight,13,6
+35,jean,13,9
+15,pizza,13,5
+67,wall socket,13,11
+84,license plate,12,7
+96,basket,12,7
+29,bottle,12,5
+24,necklace,12,10
+82,baseball bat,11,4
+118,tag,11,6
+65,necktie,11,6
+48,belt,11,8
+1,sofa,11,6
+33,computer keyboard,11,8
+64,boat,11,4
+99,tablecloth,10,7
+105,cup,10,8
+81,doorknob,10,6
+42,helmet,10,5
+112,ring,10,8
+32,blanket,10,7
+4,bench,10,8
+9,umbrella,10,5
+10,horse,10,4
+2,laptop,9,9
+19,trash can,9,7
+46,streetlight,9,5
+47,television set,9,8
+76,train,9,3
+63,earring,9,7
+92,goggles,9,5
+106,dress,9,8
+111,plastic bag,8,6
+89,sink,8,7
+87,kite,8,4
+100,bracelet,8,7
+103,computer mouse,8,7
+34,dog,7,6
+114,vent,7,6
+61,bed,7,7
+13,clock,6,5
+70,giraffe,6,3
+94,suitcase,6,6
+25,cell phone,6,6
+69,bus,6,4
+49,bird,5,3
+23,tennis racket,5,4
+39,cat,5,4
+116,cow,5,3
+71,toilet,5,5
+73,motorcycle,5,4
+97,refrigerator,5,5
+119,fireplug,5,4
+60,elephant,4,4
+66,skateboard,4,4
+88,frisbee,4,4
+101,teddy bear,4,4
+93,zebra,4,3
+78,airplane,3,3
+72,surfboard,3,3
