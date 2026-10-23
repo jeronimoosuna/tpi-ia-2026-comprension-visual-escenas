@@ -1,0 +1,16 @@
+data/development/*
+data/tpi_ia_2026_competition_public/*
+data/tpi_2026_qa_public/*
+!data/*/.gitkeep
+
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+venv/
+.venv/
+
+*.pt
+*.pth
+*.ckpt
+
+traces/

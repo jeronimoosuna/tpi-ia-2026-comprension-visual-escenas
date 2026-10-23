@@ -1,0 +1,10 @@
+numpy
+pillow
+opencv-python-headless
+matplotlib
+pandas
+torch
+torchvision
+transformers
+pycocotools
+jsonschema
