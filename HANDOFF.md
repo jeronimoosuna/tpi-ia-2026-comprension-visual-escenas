@@ -41,12 +41,12 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
 - `src/detection.py` — `detect_objects` y `suppress_duplicates` completos. Verificados con inferencia real sobre imágenes del dataset y un caso sintético de NMS.
 - `src/metrics.py::detection_f1` — completo, validado con un caso sintético calculado a mano antes de usarse sobre datos reales.
 - `src/segmentation.py` — `segment_with_sam2` (SAM2.1 tiny, vía `transformers`), `mask_to_rle`/`rle_to_mask` (RLE no comprimido column-major). Corrido sobre **las 120 imágenes completas / 7293 cajas** (`scripts/run_segmentation.py`, resultados en `reports/segmentation/`): 100% de las máscaras no vacías, 541.6s totales (~9 min), `mask_area/bbox_area` media 0.63 (SAM2 recorta la forma real, no rellena la caja). RLE verificado (`sum(counts)==h×w`) sobre una muestra de los objetos reales.
-- `scripts/run_eda.py`, `scripts/run_detection.py`, `scripts/run_segmentation.py` — funcionales, ya corridos de punta a punta sobre el dataset completo.
-- `REPORTE.md` — secciones 1 (Portada, con integrantes/nro. de grupo **pendientes de completar**), 2 (Análisis del dataset, completa), 3.1-3.3 (Metodología de detección, métrica y segmentación, completas), 4.1-4.2 (Resultados de detección y segmentación, completos). Secciones 5 y 6 parciales/pendientes.
-- Repo git: 7 commits, working tree limpio, con remoto privado en GitHub (ver sección 6).
+- `src/scene_builder.py::build_scene_json` — ensambla `image`/`objects`/`relations` a partir de los objetos detectados+segmentados, con `id` único por objeto e `image.id` = nombre de archivo sin extensión (coincide con `image_id` de `sample_submission.csv`, verificado). **Importante: NO calcula `centroid`/`area_ratio`/`position`/`size`** (eso es `properties.py`, todavía stub) — el `SceneJSON` que arma por sí solo no valida contra el schema completo todavía, es intencional (ensamblado en dos pasos). Corrido sobre las 120 imágenes completas (`scripts/build_scenes.py`): 120 escenas, 7293 objetos, 0 escenas vacías.
+- `scripts/run_eda.py`, `scripts/run_detection.py`, `scripts/run_segmentation.py`, `scripts/build_scenes.py` — funcionales, ya corridos de punta a punta sobre el dataset completo.
+- `REPORTE.md` — secciones 1 (Portada, con integrantes/nro. de grupo **pendientes de completar**), 2 (Análisis del dataset, completa), 3.1-3.4 (Metodología de detección, métrica, segmentación y construcción de SceneJSON, completas), 4.1-4.3 (Resultados de detección, segmentación y construcción de SceneJSON, completos). Secciones 5 y 6 parciales/pendientes.
+- Repo git: 8 commits, working tree limpio, con remoto privado en GitHub (ver sección 6).
 
 **Solo esqueleto (`raise NotImplementedError`), sin probar — todo lo que queda del plan:**
-- `src/scene_builder.py` (`build_scene_json`)
 - `src/properties.py` (`compute_centroid`, `compute_area_ratio`, `compute_position`, `compute_size`, `compute_dominant_color`, `compute_relations`) — las constantes `POSITIONS`/`SIZES`/`PREDICATES` ya están cargadas con los valores exactos del `scene_schema.json` real.
 - `src/tracing.py` (`Tracer`)
 - `src/qa_engine.py` (`answer_question`, `describe_scene`) — constante `QUESTION_TYPES` ya cargada.
@@ -66,6 +66,7 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
    - Tiempo: 541.6s total (~9 min) — SAM2 batchea todas las cajas de una imagen en un solo forward, por eso no escala linealmente con la cantidad de cajas.
    - `mask_area/bbox_area` media 0.634, mediana 0.646 (SAM2 recorta la forma real del objeto, no rellena la caja completa).
    - Resultados crudos en `reports/segmentation/objects_with_masks.json` (7MB) y `reports/segmentation/segmentation_summary.json`.
+4. **Construcción de `SceneJSON`** sobre las 120 imágenes (`scripts/build_scenes.py`): 120 escenas, 7293 objetos, 0 escenas vacías. Salida en `reports/scene_json/scenes.json` (7MB). Recordar: estas escenas **todavía no tienen `centroid`/`area_ratio`/`position`/`size`** (eso lo agrega `properties.py`).
 
 **No se corrió ninguna comparación controlada todavía** (ej. umbral de confianza alternativo, otra resolución de entrada, otro detector) — eso es la Tarea 12 del plan original y sigue pendiente.
 
@@ -87,18 +88,17 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
 
 ## 7. Tareas pendientes (en el orden del plan original)
 
-1. Construcción de `SceneJSON` (`src/scene_builder.py`) — ya hay máscaras reales de las 7293 cajas en `reports/segmentation/objects_with_masks.json` para armar los objetos completos.
-2. Propiedades derivadas de máscaras (`src/properties.py`): centroide, `area_ratio`, `position` (grilla 3×3), `size`, color dominante, relaciones espaciales.
-3. Trazabilidad/logging (`src/tracing.py`).
-4. Motor de QA determinista (`src/qa_engine.py`) — mínimo conteo y existencia.
-5. Completar métricas: `mask_f1`, `scene_json_consistency`, `qa_accuracy` (`detection_f1` ya está hecho).
-6. Generar y validar `submission.csv`/`solution.csv` final (80 filas).
-7. LLM liviano para `questions_llm` y descripción (`src/qa_llm.py`) — nivel promoción.
-8. Experimento controlado vs. línea base sobre el **umbral de confianza** (ej. 0.1 vs 0.3) — Tarea 12 del plan.
-9. Reporte técnico final + consolidación de todo en una única notebook de Kaggle (el usuario la sube manualmente).
+1. Propiedades derivadas de máscaras (`src/properties.py`): centroide, `area_ratio`, `position` (grilla 3×3), `size`, color dominante, relaciones espaciales. Hay que decidir los cortes exactos para `size` (el EDA sugirió terciles log-espaciados en vez de lineales, ver sección 2 de `REPORTE.md`) y los criterios geométricos para `compute_relations` (no están definidos por el schema, el enunciado deja la definición exacta a criterio del grupo — documentarlos).
+2. Trazabilidad/logging (`src/tracing.py`).
+3. Motor de QA determinista (`src/qa_engine.py`) — mínimo conteo y existencia.
+4. Completar métricas: `mask_f1`, `scene_json_consistency`, `qa_accuracy` (`detection_f1` ya está hecho).
+5. Generar y validar `submission.csv`/`solution.csv` final (80 filas).
+6. LLM liviano para `questions_llm` y descripción (`src/qa_llm.py`) — nivel promoción.
+7. Experimento controlado vs. línea base sobre el **umbral de confianza** (ej. 0.1 vs 0.3) — Tarea 12 del plan.
+8. Reporte técnico final + consolidación de todo en una única notebook de Kaggle (el usuario la sube manualmente).
 
 ## 8. Próximo paso recomendado
 
-**Construcción de `SceneJSON`** (`src/scene_builder.py`) — ya están disponibles tanto las detecciones (`reports/detection/predictions.json`) como las máscaras reales (`reports/segmentation/objects_with_masks.json`) de las 120 imágenes completas, así que este paso ya se puede implementar y probar con datos reales de punta a punta, no solo con una muestra chica.
+**Propiedades derivadas** (`src/properties.py`) — es lo que falta para que las 120 escenas en `reports/scene_json/scenes.json` pasen a validar contra `scene_schema.json` completo (hoy les faltan `centroid`/`area_ratio`/`position`/`size` en cada objeto, y `relations` sigue vacío). Ya hay máscaras reales decodificables (`rle_to_mask`) para calcular todo esto sobre datos reales, no sintéticos.
 
 Antes de arrancar, vale la pena resolver rápido el punto 1 (resolución de entrada) porque es barato y cierra un requisito explícito del enunciado que quedó suelto.

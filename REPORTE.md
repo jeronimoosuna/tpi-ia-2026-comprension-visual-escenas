@@ -60,6 +60,12 @@ Modelo: **SAM2.1** (`facebook/sam2.1-hiera-tiny`), vía la integración nativa e
 
 Verificado con inferencia real: se segmentaron cajas detectadas de verdad sobre una imagen del dataset (áreas de máscara resultantes siempre menores pero coherentes con el área de la caja que las originó, como se espera de una segmentación real del objeto dentro de su bounding box). La codificación RLE se validó con un **round-trip** (`mask_to_rle` → `rle_to_mask` → comparación con la máscara original) sobre las máscaras reales obtenidas y sobre casos borde (máscara vacía, máscara completa, lista de cajas vacía).
 
+### 3.4 Construcción de `SceneJSON` (ensamblado, sin propiedades derivadas todavía)
+
+`src/scene_builder.py::build_scene_json` arma el esqueleto estructural (`image`, `objects`, `relations`) a partir de los objetos ya detectados+segmentados (`category_id`, `confidence`, `bbox`, `mask`), asignando a cada uno un `id` string único (`{image_id}_obj{n}`). **No calcula `centroid`/`area_ratio`/`position`/`size`** — esos campos, requeridos por `scene_schema.json`, los agrega `src/properties.py` (Tarea 6, siguiente paso) sobre esta estructura ya armada; `relations` empieza vacío por el mismo motivo (se completa en base a los centroides/bboxes una vez calculados). Es decir, el `SceneJSON` que produce este módulo por sí solo **todavía no valida contra el schema completo** — es un paso intermedio del pipeline, no el artefacto final.
+
+`image.id` se construye a partir del nombre de archivo sin extensión (ej. `tpi_0001`), que es exactamente el formato que usa `sample_submission.csv` en la columna `image_id` (verificado comparando ambos archivos).
+
 ## 4. Resultados
 
 ### 4.1 Detección — baseline (`confidence_threshold=0.1`, `nms_iou_threshold=0.5`)
@@ -95,6 +101,10 @@ Corrida sobre las 120 imágenes (`scripts/run_segmentation.py`, resultados en [`
 El tiempo real fue bastante menor al estimado inicialmente (~9 min vs. una proyección de ~20-25 min calculada a partir de una sola caja aislada): SAM2 procesa **todas las cajas de una imagen en un único forward batcheado**, no una por una, así que el costo no escala linealmente con la cantidad de cajas por imagen.
 
 La relación `mask_area/bbox_area` (media 0.63) confirma que SAM2 está recortando la forma real del objeto dentro de la caja, no simplemente rellenándola — coherente con lo esperado de un segmentador real. La codificación RLE se validó también sobre los 7293 objetos reales: `sum(counts) == height×width` se cumple en el 100% de una muestra verificada.
+
+### 4.3 Construcción de `SceneJSON`
+
+`scripts/build_scenes.py` combinó las detecciones+máscaras de las 120 imágenes en `reports/scene_json/scenes.json` (120 escenas, 7293 objetos en total, **0 escenas vacías** — todas las imágenes del dataset de desarrollo tienen al menos un objeto detectado). Cada `id` de objeto es único dentro de su escena; `image.id` coincide exactamente con la columna `image_id` de `sample_submission.csv` para las filas de desarrollo.
 
 ## 5. Discusión y análisis de errores
 
