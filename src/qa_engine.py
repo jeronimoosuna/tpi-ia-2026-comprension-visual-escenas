@@ -2,7 +2,7 @@ import re
 from collections import Counter
 
 from src.geometry import bbox_iou, bbox_to_corners
-from src.properties import OVERLAP_IOU_THRESHOLD
+from src.properties import OVERLAP_IOU_THRESHOLD, PREDICATES
 
 QUESTION_TYPES = ["description", "count", "existence", "position", "size", "relation"]
 
@@ -40,7 +40,7 @@ def _base_answer(question_record: dict) -> dict:
     }
 
 
-def _unsupported(question_record: dict) -> dict:
+def unsupported_answer(question_record: dict) -> dict:
     return {
         **_base_answer(question_record),
         "answer": "unsupported",
@@ -60,7 +60,7 @@ def _resolve_single_category(question_record: dict, name_to_id: dict[str, int], 
 def _answer_count(scene_json: dict, q: dict, name_to_id: dict[str, int]) -> dict:
     category_id = _resolve_single_category(q, name_to_id)
     if category_id is None:
-        return _unsupported(q)
+        return unsupported_answer(q)
     matches = _find_by_category(scene_json, category_id)
     n = len(matches)
     confidence = min((o["confidence"] for o in matches), default=1.0)
@@ -76,7 +76,7 @@ def _answer_count(scene_json: dict, q: dict, name_to_id: dict[str, int]) -> dict
 def _answer_existence(scene_json: dict, q: dict, name_to_id: dict[str, int]) -> dict:
     category_id = _resolve_single_category(q, name_to_id)
     if category_id is None:
-        return _unsupported(q)
+        return unsupported_answer(q)
     matches = _find_by_category(scene_json, category_id)
     exists = len(matches) > 0
     confidence = min((o["confidence"] for o in matches), default=1.0)
@@ -98,10 +98,10 @@ def _answer_single_instance_field(scene_json: dict, q: dict, name_to_id: dict[st
     guessing."""
     category_id = _resolve_single_category(q, name_to_id)
     if category_id is None:
-        return _unsupported(q)
+        return unsupported_answer(q)
     matches = _find_by_category(scene_json, category_id)
     if len(matches) != 1:
-        return _unsupported(q)
+        return unsupported_answer(q)
     obj = matches[0]
     return {
         **_base_answer(q),
@@ -136,16 +136,23 @@ def _answer_relation(scene_json: dict, q: dict, name_to_id: dict[str, int]) -> d
     subject_category = _resolve_single_category(q, name_to_id, index=0)
     object_category = _resolve_single_category(q, name_to_id, index=1)
     if subject_category is None or object_category is None:
-        return _unsupported(q)
+        return unsupported_answer(q)
 
     subject_matches = _find_by_category(scene_json, subject_category)
     object_matches = _find_by_category(scene_json, object_category)
     if len(subject_matches) != 1 or len(object_matches) != 1:
-        return _unsupported(q)
+        return unsupported_answer(q)
 
-    predicate = _extract_predicate(q["question"])
+    # Deterministic-mode question records never carry "predicate" (the
+    # cátedra's structured fields don't include it, see module docstring
+    # above); LLM mode resolves it itself from the free-form question text
+    # and passes it explicitly here, since the whole point of that mode is
+    # NOT relying on fixed-phrase regex matching.
+    predicate = q.get("predicate")
+    if predicate not in PREDICATES:
+        predicate = _extract_predicate(q["question"])
     if predicate is None:
-        return _unsupported(q)
+        return unsupported_answer(q)
 
     subject, obj = subject_matches[0], object_matches[0]
     holds = _evaluate_predicate(subject, obj, predicate)
@@ -195,7 +202,7 @@ def answer_question(scene_json: dict, question_record: dict, categories: list[di
         return _answer_single_instance_field(scene_json, question_record, name_to_id, "size")
     if qtype == "relation":
         return _answer_relation(scene_json, question_record, name_to_id)
-    return _unsupported(question_record)
+    return unsupported_answer(question_record)
 
 
 def describe_scene(scene_json: dict, categories: list[dict]) -> str:

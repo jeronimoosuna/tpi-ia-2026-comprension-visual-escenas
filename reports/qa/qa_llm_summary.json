@@ -1,0 +1,22 @@
+{
+  "model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "num_questions": 60,
+  "total_time_seconds": 1914.5326659679413,
+  "by_type": {
+    "description": 20,
+    "count": 10,
+    "existence": 10,
+    "relation": 10,
+    "position": 5,
+    "size": 5
+  },
+  "unsupported_by_type": {
+    "count": 1,
+    "relation": 5,
+    "position": 3,
+    "size": 3
+  },
+  "interpreted_type_correct": 59,
+  "interpreted_class_en_exact_match": 27,
+  "interpreted_class_en_total": 40
+}

@@ -103,6 +103,21 @@ Se instrumentó `scripts/run_eda.py`, `scripts/run_detection.py`, `scripts/run_s
 - **`description`**: plantilla determinista (no LLM, por eso vive en `qa_engine.py` y no en `qa_llm.py`) que arma una oración con las 5 categorías más frecuentes de la escena y sus conteos.
 
 El cálculo del predicado de relación (`_evaluate_predicate`) reutiliza directamente la geometría de `bbox_iou`/`bbox_to_corners` **sobre los dos objetos puntuales de la pregunta**, en vez de consultar el array `relations` ya precalculado de la escena — ese array está intencionalmente podado a los 5 vecinos más cercanos por objeto (ver 3.5) para que sea *útil* como listado general, pero eso significa que puede no incluir el par exacto que pregunta una consigna puntual. Para responder con precisión una pregunta específica, más vale recalcular directo sobre las dos cajas en cuestión.
+
+### 3.8 Preguntas y respuestas — modo con LLM (promoción)
+
+> Nota de numeración: Etapa 7 del enunciado.
+
+**Modelo: Qwen2.5-1.5B-Instruct** (HF `transformers`, mismo patrón de carga que OWLv2/SAM2). Decisión tomada con evidencia, no a priori — se probó primero **Qwen2.5-0.5B-Instruct** (más liviano) y dio solo **22% de `class_en` exacto** contra el vocabulario de 120 categorías (el modelo frecuentemente deja la palabra en español sin traducir, ej. "tomacorriente" en vez de "wall socket", o confunde categorías parecidas). Con Qwen2.5-1.5B-Instruct ese número sube a **67.5%** (ver 4.8) — mejora sustancial que justifica el costo extra de inferencia (~27s/pregunta en CPU local vs ~1s de la versión 0.5B; en la GPU gratuita de Kaggle esto debería bajar bastante). Ambas pruebas y la decisión final fueron consultadas con el usuario antes de implementar.
+
+**`src/qa_llm.py::interpret_query`**: recibe **únicamente el texto de la pregunta** (nunca `type`/`class_en`/`class_es` del registro de la cátedra, que quedan reservados al modo determinista) y produce un JSON intermedio `{"type", "class_en", "predicate"?}`. El prompt incluye la lista completa de las 120 categorías válidas (para que el modelo elija de ahí, no para "ayudarlo a razonar" sobre la pregunta puntual) y seis ejemplos *few-shot*, uno por cada `type`.
+
+**Validación antes de ejecutar** (`_is_valid_interpretation`): `type` debe ser uno de los 6 válidos, cada `class_en` debe matchear exacto contra el vocabulario conocido, y `predicate` (si `type="relation"`) debe ser uno de los 5 válidos. Si algo no valida, la pregunta se marca `unsupported` directamente — **nunca se ejecuta una consulta con una categoría o predicado inventado**.
+
+**Reutilización del motor determinista**: el JSON validado se empaqueta como un `question_record` sintético y se pasa a `qa_engine.answer_question` (la misma función del modo determinista) — es el mismo motor de ejecución para ambos modos, tal como exige el enunciado. Para esto se extendió `qa_engine._answer_relation` para aceptar un `predicate` ya resuelto (en vez de extraerlo por regex del texto), ya que en modo LLM el predicado lo identifica el propio modelo.
+
+**`generate_description_llm`**: el prompt recibe solo pares categoría+conteo agregados (top 8, no la lista completa de instancias — evita prompts gigantes en imágenes con cientos de objetos), con instrucción explícita de no inventar nada que no esté en esa lista. **Resultado real: la instrucción no se respeta de forma confiable** (ver 4.8) — es la limitación más seria medida en esta sesión, documentada en detalle ahí y en la sección 5.
+
 ## 4. Resultados
 
 ### 4.1 Detección — baseline (`confidence_threshold=0.1`, `nms_iou_threshold=0.5`)
@@ -214,11 +229,39 @@ Línea base: `confidence_threshold=0.1` (secciones 4.1/4.2/4.3/4.4/4.6). Alterna
 
 Dado que el `PipelineScore` de la competencia pondera **40% F1 de cajas + 35% F1 de máscaras** contra solo **10% QA**, el componente de detección domina el puntaje por un margen grande — así que, mirando el leaderboard, **el baseline (0.1) sigue siendo la mejor elección global** pese a que 0.3 da mejores respuestas de QA. Esto es justo el tipo de trade-off entre etapas que pide analizar el enunciado: la métrica "más alta" en una etapa aislada (QA) no necesariamente es la mejor decisión para el sistema completo.
 
+### 4.8 Preguntas y respuestas — modo con LLM (Qwen2.5-1.5B-Instruct)
+
+Corrida sobre las mismas 60 preguntas reales (`scripts/run_qa_llm.py`, resultados en [`reports/qa/`](reports/qa)), 1914.5s totales (~32 min, CPU local):
+
+| Métrica | Determinista | Modo LLM |
+|---|---|---|
+| `type` interpretado correctamente | — (dado, no se interpreta) | **59/60 (98.3%)** |
+| `class_en` interpretado = exacto | — (dado) | **27/40 (67.5%)** |
+| `count` exact-match | 3/10 (30%) | **1/10 (10%)** |
+| `existence` accuracy | 9/10 (90%) | **8/10 (80%)** |
+| `unsupported` total | 11/20 | 12/60* |
+
+\* el modo LLM tiene preguntas `description` (20) que el determinista también responde pero nunca marca `unsupported` (es una plantilla, siempre produce algo) — comparando manzanas con manzanas, el `unsupported` en `position`/`size`/`relation` fue **11/20 en ambos modos, exactamente igual** (más 1 nuevo caso en `count` por una confusión de categoría del LLM — confundió "clock" con "watch", categorías distintas en nuestro vocabulario).
+
+**Hallazgo 1 — la ambigüedad del SceneJSON domina sobre el modo de interpretación.** Que `position`/`size`/`relation` den exactamente el mismo `unsupported` (11/20) en ambos modos es una confirmación fuerte de que esa ambigüedad viene de la escena predicha (detector encuentra >1 instancia), no de cómo se interpreta la pregunta — cuando el LLM identifica bien la categoría, pega contra la misma pared que el modo determinista.
+
+**Hallazgo 2 — el modo LLM es, como es esperable, menos preciso que el determinista en las métricas cuantitativas** (`count` 10% vs 30%, `existence` 80% vs 90%): el modo LLM acumula el error de detección **más** un nuevo error de interpretación (traducción/categorización incorrecta, 32.5% de las veces). Esto no es una falla de diseño — es el costo esperado y documentado de interpretar lenguaje natural con un modelo liviano en vez de recibir la categoría ya resuelta.
+
+**Hallazgo 3 — la descripción generada por LLM no respeta de forma confiable la instrucción de "no inventar" información, pese a estar instruida explícitamente para no hacerlo.** Verificación cuantitativa: **10 de las 20 descripciones (50%) mencionan al menos un color**, pese a que el prompt **nunca** incluye información de color (solo pares categoría+conteo). Ejemplos reales:
+
+- **Fabricación severa (inventa objetos no detectados):** para `DEV-6-DESC`, el input fue `8 strap, 5 necklace, 4 handbag, 4 ring, 2 bus, 2 earring, 2 wheel, 2 bench` — el modelo generó *"...varios objetos: 4 anillos, 2 bolsas portátiles, 2 botellas de agua, 2 carteras, **2 perros, 2 coches**, 2 pendientes y **2 teléfonos móviles**"* — "perros" (dogs), "coches" (cars) y "teléfonos móviles" (cell phones) **no están en ningún lado de la lista de entrada**.
+- **Fabricación moderada (colores y escenario inventados):** para `DEV-2-DESC` (input: `10 flower arrangement, 6 person, 6 shirt, 3 sock...`), el modelo inventó *"salón de una boutique elegante"*, *"traje oscuro"*, *"vestido azul marino"* — ninguno de esos detalles de color/ambientación está en los datos.
+- **Casos fieles (existen, son la minoría):** `DEV-10-DESC` y `DEV-11-DESC` se mantuvieron cerca de la lista real sin inventar colores ni objetos extra, mostrando que el modelo *puede* ser fiel, solo que no lo es de forma consistente.
+
+Esta es, de lejos, **la limitación más seria medida en esta sesión** — más que la imprecisión de `class_en` o el F1 más bajo en QA, porque una descripción con datos inventados es información falsa presentada como factual, exactamente lo que el enunciado pide evitar ("una respuesta incompleta pero sustentada es preferible a una respuesta fluida inventada"). Con un modelo de 1.5B parámetros y este prompt, esa garantía no se puede dar por sentada — mitigarlo (prompts más restrictivos, post-procesamiento que verifique cada sustantivo contra la lista de categorías, o un modelo más grande) queda fuera del alcance de esta sesión.
+
 ## 5. Discusión y análisis de errores
 
 **Precision (0.512) bastante más baja que recall (0.705) en el baseline:** con un umbral de confianza permisivo (0.1) el detector prioriza no perderse objetos a costa de más falsos positivos — esperable dado que el EDA mostró que la mayoría de los objetos son chicos (mediana `area_ratio`≈0.003) y por lo tanto difíciles de detectar con confianza alta. La comparación controlada (sección 4.7) confirmó que subir el umbral a 0.3 sí mejora precision (0.854) pero **no mejora el F1 compuesto** (0.577 vs 0.593) — el baseline queda como mejor elección para el leaderboard pese a tener peor precision aislada.
 
 **Error de propagación detección→QA (ver detalle en 4.6 y 4.7):** el 70% de las preguntas de `count` no da el número exacto en ninguno de los dos umbrales probados, y en el baseline 9 de los 11 `unsupported` en `position`/`size`/`relation` son por ambigüedad (más de una instancia detectada donde se presupone una sola) — ambos son consecuencia del umbral de confianza, no errores de lógica en `qa_engine.py`. El experimento de 4.7 confirma la dirección del efecto (subir el umbral baja la ambigüedad de 11 a 6 casos) pero también muestra que no es gratis: ese mismo cambio empeora el F1 de detección, que pesa mucho más en el `PipelineScore` (75%) que QA (10%).
+
+**Alucinación en la descripción generada por LLM (ver detalle en 4.8):** el hallazgo más serio de esta sesión. Pese a una instrucción explícita de no inventar información, **50% de las 20 descripciones generadas mencionan colores** que nunca se les dieron, y al menos un caso (`DEV-6-DESC`) inventa directamente objetos ("perros", "coches", "teléfonos móviles") ausentes de la lista de entrada. No es un bug de `qa_llm.py` — es una limitación real y medida de usar un modelo de 1.5B parámetros para generación de texto con grounding estricto. Es el riesgo más concreto del nivel de promoción: una respuesta de QA mal resuelta se marca `unsupported` (seguro), pero una descripción alucinada se entrega como si fuera verdadera.
 
 _(pendiente: inspección cualitativa de casos fallidos — FP sistemáticos por categoría, FN concentrados en objetos muy chicos o muy ocluidos)_
 
