@@ -66,6 +66,19 @@ Verificado con inferencia real: se segmentaron cajas detectadas de verdad sobre 
 
 `image.id` se construye a partir del nombre de archivo sin extensión (ej. `tpi_0001`), que es exactamente el formato que usa `sample_submission.csv` en la columna `image_id` (verificado comparando ambos archivos).
 
+### 3.5 Propiedades derivadas y relaciones espaciales
+
+> Nota de numeración: el enunciado no trata esto como una etapa aparte — es la segunda mitad de su "Etapa 3: Segmentación de instancias con SAM2" ("cada grupo deberá utilizar las máscaras para derivar propiedades..."). Acá lo separamos en su propia subsección (3.5) solo por claridad expositiva del reporte.
+
+`src/properties.py` completa los campos que faltaban en los objetos armados por `scene_builder.py`:
+
+- **`centroid`**: centro de masa de los píxeles de la máscara (no del bounding box), vía `np.nonzero`.
+- **`area_ratio`**: área de la máscara (conteo de píxeles) sobre área total de la imagen.
+- **`position`**: la grilla 3×3 oficial del schema, por cuadrante del centroide.
+- **`size`**: `small`/`medium`/`large` con cortes en **0.00126 y 0.00765** — no son números arbitrarios, son los terciles empíricos exactos de `area_ratio` calculados sobre las 1790 anotaciones reales del dataset de desarrollo (`reports/eda/object_sizes.csv`), elegidos así para que las tres clases queden razonablemente balanceadas en vez de usar cortes redondos sin respaldo en los datos.
+- **`dominant_color`** (atributo extra, no exigido por los 9 campos mínimos del schema pero sí permitido por `additionalProperties: true`): color dominante real dentro de la máscara, por cuantización de los píxeles en bins de 24 valores por canal y selección del bin más frecuente (no un promedio/mediana, que podría caer en un color que no existe realmente en el objeto).
+- **`compute_relations`**: a diferencia de un primer intento que evaluaba los *O(n²)* pares de objetos de cada imagen (en la imagen más poblada, 257 objetos → 12499 relaciones, mayormente ruido entre objetos lejanos y no relacionados que solo compartían fila o columna por casualidad), la versión final **limita cada objeto a sus 5 vecinos más cercanos** por distancia de centroides antes de evaluar `overlaps`/`left_of`/`above` (con `right_of`/`below` quedando implícitos como la relación inversa, a cargo del motor de QA). Esto bajó el promedio a 189.5 relaciones por imagen (máximo 819, muy por debajo del límite de 20000 del schema) y las deja centradas en pares efectivamente cercanos — más alineado con el criterio de "atributos y relaciones **útiles**" que pide la promoción.
+
 ## 4. Resultados
 
 ### 4.1 Detección — baseline (`confidence_threshold=0.1`, `nms_iou_threshold=0.5`)
@@ -105,6 +118,21 @@ La relación `mask_area/bbox_area` (media 0.63) confirma que SAM2 está recortan
 ### 4.3 Construcción de `SceneJSON`
 
 `scripts/build_scenes.py` combinó las detecciones+máscaras de las 120 imágenes en `reports/scene_json/scenes.json` (120 escenas, 7293 objetos en total, **0 escenas vacías** — todas las imágenes del dataset de desarrollo tienen al menos un objeto detectado). Cada `id` de objeto es único dentro de su escena; `image.id` coincide exactamente con la columna `image_id` de `sample_submission.csv` para las filas de desarrollo.
+
+### 4.4 Propiedades derivadas, relaciones y validación de schema
+
+`scripts/enrich_scenes.py` completó las 120 escenas con `centroid`/`area_ratio`/`position`/`size`/`dominant_color`/`relations` y **validó cada una contra el `scene_schema.json` real** usando la librería `jsonschema` (no una verificación manual nuestra — el validador oficial del contrato):
+
+| Métrica | Valor |
+|---|---|
+| Escenas válidas contra `scene_schema.json` | **120 / 120 (100%)** |
+| Objetos enriquecidos | 7293 |
+| Distribución de `size` | small=2671, medium=2613, large=2009 |
+| Relaciones totales (tras limitar a 5 vecinos más cercanos) | 22740 (antes: 152906 sin ese límite) |
+| Relaciones por imagen — promedio / máximo | 189.5 / 819 (cap del schema: 20000) |
+| Predicados emitidos | `overlaps`=11574, `left_of`=6094, `above`=5072 (`right_of`/`below` no se materializan, quedan implícitos) |
+
+La distribución de `size` quedó razonablemente balanceada (2671/2613/2009) a pesar de que los cortes se calcularon sobre las anotaciones reales (ground truth) y se aplican sobre objetos *detectados* (población ligeramente distinta) — buena señal de que el corte generaliza. `overlaps` domina los predicados, coherente con el crowding que ya había detectado el EDA (13% de instancias con IoU>0.3 con su vecino).
 
 ## 5. Discusión y análisis de errores
 
