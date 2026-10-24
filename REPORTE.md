@@ -118,6 +118,18 @@ El cálculo del predicado de relación (`_evaluate_predicate`) reutiliza directa
 
 **`generate_description_llm`**: el prompt recibe solo pares categoría+conteo agregados (top 8, no la lista completa de instancias — evita prompts gigantes en imágenes con cientos de objetos), con instrucción explícita de no inventar nada que no esté en esa lista. **Resultado real: la instrucción no se respeta de forma confiable** (ver 4.8) — es la limitación más seria medida en esta sesión, documentada en detalle ahí y en la sección 5.
 
+### 3.9 Métricas reutilizables
+
+> Nota de numeración: Etapa 8 del enunciado.
+
+`src/metrics.py` quedó completo con 4 funciones (antes solo estaba `detection_f1`):
+
+- **`mask_f1`**: misma política LVIS-aware de `detection_f1` (de hecho ambas comparten ahora un helper interno `_lvis_aware_f1`, parametrizado por la función de IoU — se refactorizó para no duplicar la lógica de matching), pero con IoU de máscara en vez de bbox. El ground truth viene como polígonos COCO en `annotations.json`; se rasterizan a máscara booleana con `PIL.ImageDraw` (no se sumó `pycocotools` para esto, ya suficiente con lo que ya se usa en el resto del proyecto).
+- **`scene_json_consistency`**: valida contra el schema real (`jsonschema`), que cada máscara RLE decodifique al tamaño declarado, y que toda referencia de id (`relations.subject/object`, `evidence` de `questions`/`questions_llm`) apunte a un objeto real de la escena.
+- **`qa_accuracy`**: exact-match contra respuestas de referencia, separado por `type`; las respuestas `unsupported` se excluyen del denominador (son una abstención explícita, no un error) y se reportan aparte.
+
+**Bug real encontrado y corregido durante la validación de `scene_json_consistency`:** la primera versión no detectaba un RLE corrupto (`counts` que no suma `height×width`) porque `segmentation.rle_to_mask` es tolerante por diseño (preasigna el array del tamaño declarado y lo rellena según `counts`, sin fallar si la suma no coincide — por eso el *round-trip* de la sección 3.3 nunca lo había notado, ya que ahí siempre se parte de una máscara real bien formada). Se agregó una verificación explícita de `sum(counts) == height×width` antes de decodificar. Verificado con 3 casos sintéticos rotos a propósito (relación con id inexistente, RLE corrupto, `evidence` inválida) — los 3 se detectan correctamente después del fix.
+
 ## 4. Resultados
 
 ### 4.1 Detección — baseline (`confidence_threshold=0.1`, `nms_iou_threshold=0.5`)
@@ -255,7 +267,23 @@ Corrida sobre las mismas 60 preguntas reales (`scripts/run_qa_llm.py`, resultado
 
 Esta es, de lejos, **la limitación más seria medida en esta sesión** — más que la imprecisión de `class_en` o el F1 más bajo en QA, porque una descripción con datos inventados es información falsa presentada como factual, exactamente lo que el enunciado pide evitar ("una respuesta incompleta pero sustentada es preferible a una respuesta fluida inventada"). Con un modelo de 1.5B parámetros y este prompt, esa garantía no se puede dar por sentada — mitigarlo (prompts más restrictivos, post-procesamiento que verifique cada sustantivo contra la lista de categorías, o un modelo más grande) queda fuera del alcance de esta sesión.
 
-### 4.9 Entrega final (`submission.csv`)
+### 4.9 Métricas completas — máscaras y consistencia
+
+**F1 de máscaras** (`metrics.mask_f1`), mismas 7293 predicciones del baseline (`confidence_threshold=0.1`) contra el ground truth de polígonos real:
+
+| Métrica | Cajas (4.1) | Máscaras |
+|---|---|---|
+| Precision | 0.512 | 0.488 |
+| Recall | 0.705 | 0.669 |
+| **F1** | **0.593** | **0.565** |
+
+El F1 de máscaras es levemente menor que el de cajas, como es esperable: el IoU de máscara es más estricto (exige que la forma recortada por SAM2 coincida pixel a pixel con el polígono real, no solo que el rectángulo englobante se superponga) — algunas detecciones que pasaban el umbral de cajas (IoU≥0.5) no llegan a ese umbral con la máscara real.
+
+**Consistencia del `SceneJSON`** (`metrics.scene_json_consistency`), corrida sobre las **80 filas del entregable final** (sección 4.10): **80/80 consistentes** — schema válido, todas las máscaras RLE decodifican al tamaño declarado, y todas las referencias de id (`relations`, `evidence` de `questions`/`questions_llm`) apuntan a objetos reales de la escena. Esta es una verificación más estricta que la validación de schema sola que ya se había hecho en `build_submission.py` (sección 4.10), y confirma que no quedó ninguna referencia rota.
+
+**`qa_accuracy`** reproduce exacto los números ya reportados en 4.6 (`count` 0.30, `existence` 0.90) al re-ejecutarse sobre `reports/qa/answers_dev.json` — sirve como test de regresión informal de que la generalización a función reutilizable no cambió el comportamiento medido antes.
+
+### 4.10 Entrega final (`submission.csv`)
 
 `scripts/build_submission.py` arma el archivo de 80 filas: reutiliza las 20 escenas de desarrollo ya construidas y validadas (`reports/scene_json/scenes_enriched.json`) agregándoles `questions`/`questions_llm` (ya calculados en 4.6/4.8), y corre la pipeline completa (detección→segmentación→`scene_builder`→`properties`) **por primera vez sobre las 60 imágenes de test**, que hasta este punto de la sesión nunca se habían tocado.
 
@@ -277,11 +305,13 @@ Nota práctica para quien lea el CSV: algunas filas superan el límite por defec
 
 **Alucinación en la descripción generada por LLM (ver detalle en 4.8):** el hallazgo más serio de esta sesión. Pese a una instrucción explícita de no inventar información, **50% de las 20 descripciones generadas mencionan colores** que nunca se les dieron, y al menos un caso (`DEV-6-DESC`) inventa directamente objetos ("perros", "coches", "teléfonos móviles") ausentes de la lista de entrada. No es un bug de `qa_llm.py` — es una limitación real y medida de usar un modelo de 1.5B parámetros para generación de texto con grounding estricto. Es el riesgo más concreto del nivel de promoción: una respuesta de QA mal resuelta se marca `unsupported` (seguro), pero una descripción alucinada se entrega como si fuera verdadera.
 
+**Bug de validación encontrado y corregido (ver detalle en 3.9):** la primera versión de `scene_json_consistency` no detectaba RLE corrupto porque `segmentation.rle_to_mask` es tolerante por diseño (nunca falla si `counts` no suma `height×width`, simplemente deja el resto de la máscara en `False`). Se encontró al testear la función con un caso roto a propósito, antes de confiar en ella para validar el entregable final — se corrigió agregando una verificación explícita de la suma antes de decodificar.
+
 _(pendiente: inspección cualitativa de casos fallidos — FP sistemáticos por categoría, FN concentrados en objetos muy chicos o muy ocluidos)_
 
 ## 6. Conclusiones y trabajo futuro
 
-**Nivel alcanzado (a confirmar en la defensa oral):** las 9 etapas de "Desarrollo del trabajo" del enunciado están implementadas y corridas con datos reales — F1 de detección 0.593 (≥0.40 aprobado, ≥0.50 promoción), pipeline modularizada y trazada, `SceneJSON` 100% válido contra el schema oficial en las 80 filas de entrega, `questions` determinista y `questions_llm` con LLM ambos poblados para las 20 imágenes de desarrollo, y una comparación controlada con conclusión explícita (sección 4.7). Lo que falta para dar por "cerrado" el nivel de promoción con confianza son las funciones de métrica reutilizables (`mask_f1`, `scene_json_consistency`, `qa_accuracy` propias en `metrics.py` — hoy ese cálculo existe pero disperso en varios scripts) y completar Portada (integrantes, nro. de grupo).
+**Nivel alcanzado (a confirmar en la defensa oral):** las 9 etapas de "Desarrollo del trabajo" del enunciado están implementadas y corridas con datos reales — F1 de detección 0.593 y F1 de máscaras 0.565 (≥0.40 aprobado, ≥0.50 promoción), pipeline modularizada y trazada, `SceneJSON` 100% válido (schema + RLE + referencias de ids, no solo schema) contra el schema oficial en las 80 filas de entrega, `questions` determinista y `questions_llm` con LLM ambos poblados para las 20 imágenes de desarrollo, una comparación controlada con conclusión explícita (sección 4.7), y las funciones de métrica reutilizables completas en `metrics.py` (sección 3.9). Lo que falta para dar por "cerrado" el reporte es solo completar la Portada (integrantes, nro. de grupo).
 
 **Lo que mejor funcionó:**
 - El detector + SAM2 + `jsonschema` dieron una representación estructurada **100% válida** de punta a punta (80/80 filas), sin ningún caso de JSON malformado o RLE inconsistente.
@@ -296,5 +326,4 @@ _(pendiente: inspección cualitativa de casos fallidos — FP sistemáticos por 
 **Trabajo futuro, en orden de impacto esperado:**
 1. Mitigar la alucinación de `generate_description_llm` — es el riesgo más concreto detectado, y el más barato de intentar mejorar (prompt más restrictivo, post-verificación de sustantivos contra el vocabulario de categorías).
 2. Explorar umbrales intermedios (0.15-0.2) en vez de solo 0.1 vs 0.3, para buscar un punto que no sacrifique tanto recall como 0.3 pero sí reduzca algo la ambigüedad de QA.
-3. Completar las funciones de métrica reutilizables en `metrics.py` (hoy el cálculo de `qa_accuracy`/`scene_json_consistency` vive disperso en los scripts de cada corrida).
-4. Si hay tiempo para una extensión de nivel sobresaliente: usar las máscaras reales (no solo bboxes) para refinar `compute_relations` (`overlaps` vía IoU de máscaras en vez de bboxes sería más preciso en escenas con mucho crowding, donde las bboxes se superponen más de lo que los objetos realmente lo hacen).
+3. Si hay tiempo para una extensión de nivel sobresaliente: usar las máscaras reales (no solo bboxes) para refinar `compute_relations` (`overlaps` vía IoU de máscaras en vez de bboxes sería más preciso en escenas con mucho crowding, donde las bboxes se superponen más de lo que los objetos realmente lo hacen) — ahora que `mask_f1` (3.9) ya mostró que la métrica de máscara es más estricta que la de cajas, este mismo razonamiento aplicaría a relaciones espaciales calculadas sobre bboxes en escenas con mucho solapamiento.
