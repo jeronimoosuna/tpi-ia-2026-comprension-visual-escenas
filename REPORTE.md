@@ -255,6 +255,20 @@ Corrida sobre las mismas 60 preguntas reales (`scripts/run_qa_llm.py`, resultado
 
 Esta es, de lejos, **la limitación más seria medida en esta sesión** — más que la imprecisión de `class_en` o el F1 más bajo en QA, porque una descripción con datos inventados es información falsa presentada como factual, exactamente lo que el enunciado pide evitar ("una respuesta incompleta pero sustentada es preferible a una respuesta fluida inventada"). Con un modelo de 1.5B parámetros y este prompt, esa garantía no se puede dar por sentada — mitigarlo (prompts más restrictivos, post-procesamiento que verifique cada sustantivo contra la lista de categorías, o un modelo más grande) queda fuera del alcance de esta sesión.
 
+### 4.9 Entrega final (`submission.csv`)
+
+`scripts/build_submission.py` arma el archivo de 80 filas: reutiliza las 20 escenas de desarrollo ya construidas y validadas (`reports/scene_json/scenes_enriched.json`) agregándoles `questions`/`questions_llm` (ya calculados en 4.6/4.8), y corre la pipeline completa (detección→segmentación→`scene_builder`→`properties`) **por primera vez sobre las 60 imágenes de test**, que hasta este punto de la sesión nunca se habían tocado.
+
+| Métrica | Valor |
+|---|---|
+| Filas totales | **80/80** (60 test + 20 desarrollo) |
+| Escenas válidas contra `scene_schema.json` | **80/80 (100%)** |
+| `image_id` coincide con `sample_submission.csv` | Verificado exacto (mismo conjunto de 80 ids) |
+
+Como el PDF del enunciado llama al archivo `submission.csv` y la página de Kaggle lo llama `solution.csv` (discrepancia detectada y nunca resuelta por la cátedra, ver sección 1 y `HANDOFF.md`), se generaron **ambos archivos con contenido idéntico** en vez de apostar a uno — así no hace falta renombrar nada a último momento sea cual sea el que Kaggle termine esperando.
+
+Nota práctica para quien lea el CSV: algunas filas superan el límite por defecto de `csv.field_size_limit` de Python (imágenes muy pobladas, con RLE de más de 100 máscaras) — hay que llamar `csv.field_size_limit(sys.maxsize)` antes de parsearlo, si no `csv.DictReader` tira `_csv.Error: field larger than field limit`.
+
 ## 5. Discusión y análisis de errores
 
 **Precision (0.512) bastante más baja que recall (0.705) en el baseline:** con un umbral de confianza permisivo (0.1) el detector prioriza no perderse objetos a costa de más falsos positivos — esperable dado que el EDA mostró que la mayoría de los objetos son chicos (mediana `area_ratio`≈0.003) y por lo tanto difíciles de detectar con confianza alta. La comparación controlada (sección 4.7) confirmó que subir el umbral a 0.3 sí mejora precision (0.854) pero **no mejora el F1 compuesto** (0.577 vs 0.593) — el baseline queda como mejor elección para el leaderboard pese a tener peor precision aislada.
@@ -267,4 +281,20 @@ _(pendiente: inspección cualitativa de casos fallidos — FP sistemáticos por 
 
 ## 6. Conclusiones y trabajo futuro
 
-_(pendiente)_
+**Nivel alcanzado (a confirmar en la defensa oral):** las 9 etapas de "Desarrollo del trabajo" del enunciado están implementadas y corridas con datos reales — F1 de detección 0.593 (≥0.40 aprobado, ≥0.50 promoción), pipeline modularizada y trazada, `SceneJSON` 100% válido contra el schema oficial en las 80 filas de entrega, `questions` determinista y `questions_llm` con LLM ambos poblados para las 20 imágenes de desarrollo, y una comparación controlada con conclusión explícita (sección 4.7). Lo que falta para dar por "cerrado" el nivel de promoción con confianza son las funciones de métrica reutilizables (`mask_f1`, `scene_json_consistency`, `qa_accuracy` propias en `metrics.py` — hoy ese cálculo existe pero disperso en varios scripts) y completar Portada (integrantes, nro. de grupo).
+
+**Lo que mejor funcionó:**
+- El detector + SAM2 + `jsonschema` dieron una representación estructurada **100% válida** de punta a punta (80/80 filas), sin ningún caso de JSON malformado o RLE inconsistente.
+- La arquitectura de dos pasos (`scene_builder` ensambla, `properties` enriquece) y la reutilización del mismo motor de ejecución entre modo determinista y modo LLM (`qa_engine.answer_question` llamado desde ambos) se sostuvieron sin fricción al agregar funcionalidad nueva.
+- El criterio de "ambigüedad → `unsupported`" en vez de adivinar resultó ser una decisión robusta: se mantuvo consistente entre modo determinista y modo LLM (11/20 en ambos), lo cual terminó siendo evidencia útil para diagnosticar que la ambigüedad viene del SceneJSON, no de cómo se interpreta la pregunta.
+
+**Lo que no funcionó tan bien, documentado sin maquillar:**
+- El umbral de confianza no tiene un punto óptimo simple: 0.1 maximiza F1 de detección pero genera ambigüedad en QA; 0.3 reduce esa ambigüedad pero resigna F1. No se exploró una zona intermedia (ej. 0.15-0.2) ni otros ejes (otra resolución, otro detector) por tiempo.
+- El modo LLM, aun con el modelo más grande probado (1.5B), solo identifica la categoría correcta 2 de cada 3 veces, y la descripción generada alucina en la mitad de los casos pese a instrucción explícita de no hacerlo. Un modelo liviano no es garantía de respuestas confiables sin mecanismos adicionales de verificación que esta sesión no llegó a implementar.
+- No se hizo inspección cualitativa caso por caso de falsos positivos/negativos de detección por categoría (sección 5) — el análisis de errores se apoyó en agregados (F1, accuracy) más que en ejemplos puntuales.
+
+**Trabajo futuro, en orden de impacto esperado:**
+1. Mitigar la alucinación de `generate_description_llm` — es el riesgo más concreto detectado, y el más barato de intentar mejorar (prompt más restrictivo, post-verificación de sustantivos contra el vocabulario de categorías).
+2. Explorar umbrales intermedios (0.15-0.2) en vez de solo 0.1 vs 0.3, para buscar un punto que no sacrifique tanto recall como 0.3 pero sí reduzca algo la ambigüedad de QA.
+3. Completar las funciones de métrica reutilizables en `metrics.py` (hoy el cálculo de `qa_accuracy`/`scene_json_consistency` vive disperso en los scripts de cada corrida).
+4. Si hay tiempo para una extensión de nivel sobresaliente: usar las máscaras reales (no solo bboxes) para refinar `compute_relations` (`overlaps` vía IoU de máscaras en vez de bboxes sería más preciso en escenas con mucho crowding, donde las bboxes se superponen más de lo que los objetos realmente lo hacen).
