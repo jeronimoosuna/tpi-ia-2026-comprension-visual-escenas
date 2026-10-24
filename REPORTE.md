@@ -89,6 +89,20 @@ Además del método explícito `log_step`, `Tracer.step(...)` es un *context man
 
 Se instrumentó `scripts/run_eda.py`, `scripts/run_detection.py`, `scripts/run_segmentation.py`, `scripts/build_scenes.py` y `scripts/enrich_scenes.py`. **Importante:** `run_detection.py` y `run_segmentation.py` se instrumentaron en el código pero **no se volvieron a correr** (ya habían corrido antes de agregar tracing, y repetirlos solo para generar trazas hubiera costado ~15 minutos sin aportar información nueva) — sus resultados en `reports/detection/` y `reports/segmentation/` siguen siendo válidos, simplemente no tienen entradas en `reports/trace/pipeline.jsonl` todavía. Los tres pasos más baratos (`eda`, `scene_builder`, `properties`+`schema_validation`) sí se re-corrieron con tracing activo y produjeron resultados **idénticos** a las corridas anteriores sin tracing (buena señal de reproducibilidad).
 
+### 3.7 Preguntas y respuestas — modo determinista
+
+> Nota de numeración: Etapa 6 del enunciado.
+
+`src/qa_engine.py::answer_question` recibe una fila de `questions_dev.jsonl` (`question_id`, `type`, `question`, `class_en`/`class_es`, sin pasar por ningún LLM) y la lista de categorías, y construye la respuesta consultando directamente el `SceneJSON` ya enriquecido. Decisiones de diseño, **todas consultadas con el usuario antes de implementar**:
+
+- **Resolución de categoría**: `class_en` se matchea contra `category_id` vía el mismo patrón `name→id` que ya usa `detection.py` (verificado: las 40 referencias `class_en` de las 60 preguntas matchean exacto contra los nombres de `annotations.json["categories"]`, 0 faltantes).
+- **Predicado de `relation`**: el campo estructurado **no incluye el predicado** (`above`/`left_of`/etc.) por separado — solo viene embebido en el texto ("está por encima de"). Se resuelve con **matching de frases fijas por regex** sobre las 5 frases conocidas en español (verificadas contra las 10 preguntas `relation` reales del dataset), no con un LLM — decisión consultada y confirmada con el usuario.
+- **Preguntas que presuponen una única instancia** (`position`, `size`, y los dos objetos de `relation`, todas frases con "la instancia de X" en singular): si hay 0 matches, no aplica; si hay **más de 1 match, es ambiguo** (no hay forma de saber cuál instancia se pregunta) — ambos casos devuelven `unsupported`, nunca una adivinanza. `count`/`existence` no tienen este problema porque la multiplicidad es justamente lo que preguntan.
+- **`confidence`**: mínimo de las confianzas de detección de los objetos involucrados en la respuesta (conservador — confirmado con el usuario).
+- **`unsupported`**: solo por falta de información estructural real (categoría no resuelve, tipo no soportado, predicado no identificable, o ambigüedad de instancia única). **Conteo/existencia en 0 es una respuesta válida**, no `unsupported` — confirmado con el usuario.
+- **`description`**: plantilla determinista (no LLM, por eso vive en `qa_engine.py` y no en `qa_llm.py`) que arma una oración con las 5 categorías más frecuentes de la escena y sus conteos.
+
+El cálculo del predicado de relación (`_evaluate_predicate`) reutiliza directamente la geometría de `bbox_iou`/`bbox_to_corners` **sobre los dos objetos puntuales de la pregunta**, en vez de consultar el array `relations` ya precalculado de la escena — ese array está intencionalmente podado a los 5 vecinos más cercanos por objeto (ver 3.5) para que sea *útil* como listado general, pero eso significa que puede no incluir el par exacto que pregunta una consigna puntual. Para responder con precisión una pregunta específica, más vale recalcular directo sobre las dos cajas en cuestión.
 ## 4. Resultados
 
 ### 4.1 Detección — baseline (`confidence_threshold=0.1`, `nms_iou_threshold=0.5`)
@@ -156,9 +170,36 @@ Re-correr `run_eda.py`, `build_scenes.py` y `enrich_scenes.py` con `Tracer` acti
 | `schema_validation` | 120 | 100% `ok` |
 
 El camino de error también se verificó (no solo el camino feliz): un test sintético que fuerza una excepción dentro de `Tracer.step(...)` confirma que el paso queda registrado con `status="error"` y el mensaje de la excepción, **y la excepción se vuelve a lanzar** — no queda enmascarada.
+
+### 4.6 Preguntas y respuestas — modo determinista
+
+Corrida sobre las **60 consignas reales** de `questions_dev.jsonl` contra los `SceneJSON` ya validados (`scripts/run_qa.py`, resultados en [`reports/qa/`](reports/qa)):
+
+| Tipo | Total | `unsupported` |
+|---|---|---|
+| `description` | 20 | 0 |
+| `count` | 10 | 0 |
+| `existence` | 10 | 0 |
+| `relation` | 10 | 5 |
+| `position` | 5 | 3 |
+| `size` | 5 | 3 |
+
+**Precisión real, comparada contra el ground truth de `annotations.json`** (uso permitido por el enunciado para evaluación, no se usó para construir las respuestas):
+
+| Métrica | Valor |
+|---|---|
+| `count` — exact match | **3 / 10 (30%)** |
+| `existence` — accuracy | **9 / 10 (90%)** |
+
+**Hallazgo relevante para el análisis de errores (Etapa 8):** el 30% de exact-match en `count` es bajo y **no es un bug de `qa_engine.py`** — es la métrica de detección (F1=0.593, precision=0.512) **propagándose** a la capa de preguntas: el motor de QA cuenta exactamente los objetos que el detector encontró, así que un `count` erróneo casi siempre refleja sobre-conteo (falsos positivos no filtrados por NMS) o sub-conteo (falsos negativos) en la etapa de detección, no un error de consulta. `existence` es mucho más tolerante a este ruido (90%) porque solo necesita `count>0`, no el número exacto — un solo caso falló por un falso positivo del detector (`DEV-23-Q1`: predijo `yes` cuando el ground truth es `no`).
+
+De los 11 casos `unsupported` en `position`/`size`/`relation`, **9 son por ambigüedad** (el detector encontró más de una instancia de una categoría que la pregunta presupone única — ej. "tabla de surf" con 10 matches en una imagen) y solo 2 por falta de detección real (`strap`, `spectacles` con 0 matches). Esto es una **consecuencia directa y medible del umbral de confianza permisivo (0.1)** elegido en la Etapa 2 para maximizar recall: ese mismo umbral que ayuda al F1 de detección perjudica la tasa de respuestas resueltas en QA, porque genera más instancias "de más" que rompen el supuesto de unicidad. Es un argumento concreto a favor de priorizar el experimento controlado de umbral de confianza (Tarea 12) — no solo por el F1 de detección, sino por su efecto en cascada sobre QA.
+
 ## 5. Discusión y análisis de errores
 
 **Precision (0.512) bastante más baja que recall (0.705):** con un umbral de confianza permisivo (0.1) el detector prioriza no perderse objetos a costa de más falsos positivos — esperable dado que el EDA mostró que la mayoría de los objetos son chicos (mediana `area_ratio`≈0.003) y por lo tanto difíciles de detectar con confianza alta. Queda pendiente la comparación controlada (sección "Proceso experimental" del plan) con un umbral más conservador (ej. 0.3) para ver el trade-off precision/recall y si mejora el F1 compuesto.
+
+**Error de propagación detección→QA (ver detalle en 4.6):** el 70% de las preguntas de `count` no da el número exacto, y 9 de los 11 `unsupported` en `position`/`size`/`relation` son por ambigüedad (más de una instancia detectada donde se presupone una sola) — ambos son consecuencia directa del umbral de confianza permisivo, no errores de lógica en `qa_engine.py`. Es la evidencia más concreta que tenemos hasta ahora de que el umbral de detección no es solo un número de F1 aislado: se propaga y degrada toda la capa de preguntas.
 
 _(pendiente: inspección cualitativa de casos fallidos — FP sistemáticos por categoría, FN concentrados en objetos muy chicos o muy ocluidos)_
 
