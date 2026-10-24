@@ -6,11 +6,12 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src import detection, metrics
+from src import detection, metrics, tracing
 
 ROOT = Path(__file__).resolve().parents[1]
 DEVELOPMENT_DIR = ROOT / "data" / "development"
 OUTPUT_DIR = ROOT / "reports" / "detection"
+TRACE_PATH = ROOT / "reports" / "trace" / "pipeline.jsonl"
 
 CONFIDENCE_THRESHOLD = 0.1
 NMS_IOU_THRESHOLD = 0.5
@@ -18,6 +19,7 @@ NMS_IOU_THRESHOLD = 0.5
 
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    tracer = tracing.Tracer(TRACE_PATH)
     annotations = json.load(open(DEVELOPMENT_DIR / "annotations.json"))
     vocabulary = {c["name"]: c["id"] for c in annotations["categories"]}
 
@@ -26,12 +28,17 @@ def main() -> None:
     t_start = time.time()
 
     for i, img_info in enumerate(annotations["images"]):
+        image_id = Path(img_info["file_name"]).stem
         image_path = DEVELOPMENT_DIR / "images" / img_info["file_name"]
         image = Image.open(image_path).convert("RGB")
 
         t0 = time.time()
-        raw = detection.detect_objects(image, vocabulary, confidence_threshold=CONFIDENCE_THRESHOLD)
-        kept = detection.suppress_duplicates(raw, iou_threshold=NMS_IOU_THRESHOLD)
+        with tracer.step(image_id, "detection", {
+            "confidence_threshold": CONFIDENCE_THRESHOLD, "vocabulary_size": len(vocabulary),
+        }):
+            raw = detection.detect_objects(image, vocabulary, confidence_threshold=CONFIDENCE_THRESHOLD)
+        with tracer.step(image_id, "nms", {"iou_threshold": NMS_IOU_THRESHOLD, "num_raw": len(raw)}):
+            kept = detection.suppress_duplicates(raw, iou_threshold=NMS_IOU_THRESHOLD)
         elapsed = time.time() - t0
 
         for det in kept:

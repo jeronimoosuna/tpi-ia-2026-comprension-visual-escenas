@@ -79,6 +79,16 @@ Verificado con inferencia real: se segmentaron cajas detectadas de verdad sobre 
 - **`dominant_color`** (atributo extra, no exigido por los 9 campos mínimos del schema pero sí permitido por `additionalProperties: true`): color dominante real dentro de la máscara, por cuantización de los píxeles en bins de 24 valores por canal y selección del bin más frecuente (no un promedio/mediana, que podría caer en un color que no existe realmente en el objeto).
 - **`compute_relations`**: a diferencia de un primer intento que evaluaba los *O(n²)* pares de objetos de cada imagen (en la imagen más poblada, 257 objetos → 12499 relaciones, mayormente ruido entre objetos lejanos y no relacionados que solo compartían fila o columna por casualidad), la versión final **limita cada objeto a sus 5 vecinos más cercanos** por distancia de centroides antes de evaluar `overlaps`/`left_of`/`above` (con `right_of`/`below` quedando implícitos como la relación inversa, a cargo del motor de QA). Esto bajó el promedio a 189.5 relaciones por imagen (máximo 819, muy por debajo del límite de 20000 del schema) y las deja centradas en pares efectivamente cercanos — más alineado con el criterio de "atributos y relaciones **útiles**" que pide la promoción.
 
+### 3.6 Trazabilidad de la pipeline
+
+> Nota de numeración: en el enunciado esta es su propia "Etapa 5", separada de la segmentación/representación.
+
+`src/tracing.py::Tracer` escribe una línea JSON por paso (formato *JSON Lines*: auditable, se puede `grep`-ear y se puede recargar sin parsear el archivo entero) en `reports/trace/pipeline.jsonl`. Cada registro tiene `timestamp`, `run_id` (para distinguir corridas distintas que comparten el mismo archivo), `image_id`, `module`, `status` (`ok`/`error`/`skipped`), `duration_seconds` y los `params` relevantes de ese paso — nunca arrays completos ni imágenes, solo metadatos.
+
+Además del método explícito `log_step`, `Tracer.step(...)` es un *context manager* que mide el tiempo automáticamente y, si el bloque lanza una excepción, registra `status="error"` con el mensaje **y vuelve a lanzar la excepción** (no la traga en silencio) — así un paso que falla sigue fallando de forma visible, pero además queda localizado en la traza, que es exactamente el objetivo que pide el enunciado ("reconstruir cómo se obtuvo un resultado y localizar en qué etapa se originó o propagó un error").
+
+Se instrumentó `scripts/run_eda.py`, `scripts/run_detection.py`, `scripts/run_segmentation.py`, `scripts/build_scenes.py` y `scripts/enrich_scenes.py`. **Importante:** `run_detection.py` y `run_segmentation.py` se instrumentaron en el código pero **no se volvieron a correr** (ya habían corrido antes de agregar tracing, y repetirlos solo para generar trazas hubiera costado ~15 minutos sin aportar información nueva) — sus resultados en `reports/detection/` y `reports/segmentation/` siguen siendo válidos, simplemente no tienen entradas en `reports/trace/pipeline.jsonl` todavía. Los tres pasos más baratos (`eda`, `scene_builder`, `properties`+`schema_validation`) sí se re-corrieron con tracing activo y produjeron resultados **idénticos** a las corridas anteriores sin tracing (buena señal de reproducibilidad).
+
 ## 4. Resultados
 
 ### 4.1 Detección — baseline (`confidence_threshold=0.1`, `nms_iou_threshold=0.5`)
@@ -134,6 +144,18 @@ La relación `mask_area/bbox_area` (media 0.63) confirma que SAM2 está recortan
 
 La distribución de `size` quedó razonablemente balanceada (2671/2613/2009) a pesar de que los cortes se calcularon sobre las anotaciones reales (ground truth) y se aplican sobre objetos *detectados* (población ligeramente distinta) — buena señal de que el corte generaliza. `overlaps` domina los predicados, coherente con el crowding que ya había detectado el EDA (13% de instancias con IoU>0.3 con su vecino).
 
+### 4.5 Trazabilidad
+
+Re-correr `run_eda.py`, `build_scenes.py` y `enrich_scenes.py` con `Tracer` activo produjo **361 registros reales** en `reports/trace/pipeline.jsonl`, con resultados idénticos a las corridas anteriores (confirma reproducibilidad):
+
+| Módulo | Registros | Status |
+|---|---|---|
+| `eda` | 1 (todo el dataset de una vez, no es por imagen) | 120 imágenes, 1.1s |
+| `scene_builder` | 120 (uno por imagen) | 100% `ok` |
+| `properties` | 120 | 100% `ok`, 22.1s totales, 0.18s/imagen promedio |
+| `schema_validation` | 120 | 100% `ok` |
+
+El camino de error también se verificó (no solo el camino feliz): un test sintético que fuerza una excepción dentro de `Tracer.step(...)` confirma que el paso queda registrado con `status="error"` y el mensaje de la excepción, **y la excepción se vuelve a lanzar** — no queda enmascarada.
 ## 5. Discusión y análisis de errores
 
 **Precision (0.512) bastante más baja que recall (0.705):** con un umbral de confianza permisivo (0.1) el detector prioriza no perderse objetos a costa de más falsos positivos — esperable dado que el EDA mostró que la mayoría de los objetos son chicos (mediana `area_ratio`≈0.003) y por lo tanto difíciles de detectar con confianza alta. Queda pendiente la comparación controlada (sección "Proceso experimental" del plan) con un umbral más conservador (ej. 0.3) para ver el trade-off precision/recall y si mejora el F1 compuesto.

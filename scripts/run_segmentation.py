@@ -6,16 +6,18 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src import segmentation
+from src import segmentation, tracing
 
 ROOT = Path(__file__).resolve().parents[1]
 DEVELOPMENT_DIR = ROOT / "data" / "development"
 DETECTION_PREDICTIONS = ROOT / "reports" / "detection" / "predictions.json"
 OUTPUT_DIR = ROOT / "reports" / "segmentation"
+TRACE_PATH = ROOT / "reports" / "trace" / "pipeline.jsonl"
 
 
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    tracer = tracing.Tracer(TRACE_PATH)
     annotations = json.load(open(DEVELOPMENT_DIR / "annotations.json"))
     predictions = json.load(open(DETECTION_PREDICTIONS))
 
@@ -29,9 +31,11 @@ def main() -> None:
 
     for i, img_info in enumerate(annotations["images"]):
         image_id = img_info["id"]
+        trace_image_id = Path(img_info["file_name"]).stem
         img_preds = preds_by_image.get(image_id, [])
         if not img_preds:
             per_image_timing.append(0.0)
+            tracer.log_step(trace_image_id, "segmentation", {"num_boxes": 0}, status="skipped")
             print(f"[{i + 1}/{len(annotations['images'])}] {img_info['file_name']}: "
                   f"0 boxes, skipped", flush=True)
             continue
@@ -41,7 +45,8 @@ def main() -> None:
         boxes = [p["bbox"] for p in img_preds]
 
         t0 = time.time()
-        masks = segmentation.segment_with_sam2(image, boxes)
+        with tracer.step(trace_image_id, "segmentation", {"num_boxes": len(boxes)}):
+            masks = segmentation.segment_with_sam2(image, boxes)
         elapsed = time.time() - t0
 
         for pred, mask in zip(img_preds, masks):

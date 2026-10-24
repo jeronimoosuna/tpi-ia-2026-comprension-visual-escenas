@@ -5,16 +5,24 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from src import eda
+from src import eda, tracing
 
 DEVELOPMENT_DIR = Path(__file__).resolve().parents[1] / "data" / "development"
 OUTPUT_DIR = Path(__file__).resolve().parents[1] / "reports" / "eda"
+TRACE_PATH = Path(__file__).resolve().parents[1] / "reports" / "trace" / "pipeline.jsonl"
 
 
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    tracer = tracing.Tracer(TRACE_PATH)
     annotations = eda.load_annotations(DEVELOPMENT_DIR)
+    # EDA operates on the whole dataset at once (not per-image), so it gets
+    # a single trace record rather than one per image.
+    with tracer.step("dataset", "eda", {"num_images": len(annotations["images"])}):
+        run_eda(annotations)
 
+
+def run_eda(annotations: dict) -> None:
     categories = eda.category_distribution(annotations)
     categories.to_csv(OUTPUT_DIR / "category_distribution.csv", index=False)
     top = categories.head(30)
