@@ -80,6 +80,22 @@ El F1 baseline (0.593) ya supera el umbral de **promoción** (≥0.50) y el de *
 
 De las 7293 predicciones, **4828 (66%) se ignoran** por corresponder a categorías "no verificadas" en esa imagen (ni positivas ni negativas) — es esperable, porque el detector consulta las 120 categorías en cada imagen aunque la mayoría no aplique a esa escena en particular. La política LVIS evita que eso infle artificialmente los falsos positivos.
 
+### 4.2 Segmentación — SAM2.1 tiny sobre las 7293 cajas detectadas
+
+Corrida sobre las 120 imágenes (`scripts/run_segmentation.py`, resultados en [`reports/segmentation/`](reports/segmentation)), usando como *prompts* las cajas ya detectadas (post-NMS) en 4.1:
+
+| Métrica | Valor |
+|---|---|
+| Objetos segmentados | 7293 / 7293 (100%, ninguna máscara vacía) |
+| Tiempo total | 541.6s (≈9 min, CPU local) |
+| Promedio por imagen (con cajas) | 3.6s |
+| `mask_area / bbox_area` — media / mediana | 0.634 / 0.646 |
+| `mask_area / bbox_area` — percentil 10 / 90 | 0.332 / 0.897 |
+
+El tiempo real fue bastante menor al estimado inicialmente (~9 min vs. una proyección de ~20-25 min calculada a partir de una sola caja aislada): SAM2 procesa **todas las cajas de una imagen en un único forward batcheado**, no una por una, así que el costo no escala linealmente con la cantidad de cajas por imagen.
+
+La relación `mask_area/bbox_area` (media 0.63) confirma que SAM2 está recortando la forma real del objeto dentro de la caja, no simplemente rellenándola — coherente con lo esperado de un segmentador real. La codificación RLE se validó también sobre los 7293 objetos reales: `sum(counts) == height×width` se cumple en el 100% de una muestra verificada.
+
 ## 5. Discusión y análisis de errores
 
 **Precision (0.512) bastante más baja que recall (0.705):** con un umbral de confianza permisivo (0.1) el detector prioriza no perderse objetos a costa de más falsos positivos — esperable dado que el EDA mostró que la mayoría de los objetos son chicos (mediana `area_ratio`≈0.003) y por lo tanto difíciles de detectar con confianza alta. Queda pendiente la comparación controlada (sección "Proceso experimental" del plan) con un umbral más conservador (ej. 0.3) para ver el trade-off precision/recall y si mejora el F1 compuesto.
