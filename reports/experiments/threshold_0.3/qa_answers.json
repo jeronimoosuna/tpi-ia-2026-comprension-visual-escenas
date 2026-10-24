@@ -1,0 +1,873 @@
+[
+  {
+    "question_id": "DEV-1-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 3 drawer, 2 handle, 1 vent, 1 mirror y 1 wall socket.",
+    "normalized_answer": "La escena contiene 3 drawer, 2 handle, 1 vent, 1 mirror y 1 wall socket.",
+    "evidence": [
+      "tpi_0001_obj1",
+      "tpi_0001_obj2",
+      "tpi_0001_obj3",
+      "tpi_0001_obj4",
+      "tpi_0001_obj5",
+      "tpi_0001_obj6",
+      "tpi_0001_obj7",
+      "tpi_0001_obj8",
+      "tpi_0001_obj9",
+      "tpi_0001_obj10"
+    ],
+    "confidence": 0.35620003938674927
+  },
+  {
+    "question_id": "DEV-1-Q1",
+    "type": "count",
+    "question": "¿Cuántas instancias de la categoría \"pomo de puerta\" aparecen en la imagen?",
+    "answer": "0",
+    "normalized_answer": 0,
+    "evidence": [],
+    "confidence": 1.0
+  },
+  {
+    "question_id": "DEV-1-Q2",
+    "type": "existence",
+    "question": "¿Hay al menos una instancia de la categoría \"tomacorriente\" en la imagen?",
+    "answer": "yes",
+    "normalized_answer": "yes",
+    "evidence": [
+      "tpi_0001_obj3"
+    ],
+    "confidence": 0.4626849591732025
+  },
+  {
+    "question_id": "DEV-2-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 2 necktie, 2 sock, 1 bracelet, 1 watch y 1 tennis racket.",
+    "normalized_answer": "La escena contiene 2 necktie, 2 sock, 1 bracelet, 1 watch y 1 tennis racket.",
+    "evidence": [
+      "tpi_0002_obj1",
+      "tpi_0002_obj2",
+      "tpi_0002_obj3",
+      "tpi_0002_obj4",
+      "tpi_0002_obj5",
+      "tpi_0002_obj6",
+      "tpi_0002_obj7",
+      "tpi_0002_obj8",
+      "tpi_0002_obj9",
+      "tpi_0002_obj10"
+    ],
+    "confidence": 0.31932976841926575
+  },
+  {
+    "question_id": "DEV-2-Q1",
+    "type": "count",
+    "question": "¿Cuántas instancias de la categoría \"calcetín\" aparecen en la imagen?",
+    "answer": "2",
+    "normalized_answer": 2,
+    "evidence": [
+      "tpi_0002_obj9",
+      "tpi_0002_obj10"
+    ],
+    "confidence": 0.4864240288734436
+  },
+  {
+    "question_id": "DEV-2-Q2",
+    "type": "existence",
+    "question": "¿Hay al menos una instancia de la categoría \"raqueta de tenis\" en la imagen?",
+    "answer": "yes",
+    "normalized_answer": "yes",
+    "evidence": [
+      "tpi_0002_obj5"
+    ],
+    "confidence": 0.7332080602645874
+  },
+  {
+    "question_id": "DEV-3-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 2 vase, 2 laptop, 1 lamp, 1 curtain y 1 flower arrangement.",
+    "normalized_answer": "La escena contiene 2 vase, 2 laptop, 1 lamp, 1 curtain y 1 flower arrangement.",
+    "evidence": [
+      "tpi_0003_obj1",
+      "tpi_0003_obj2",
+      "tpi_0003_obj3",
+      "tpi_0003_obj4",
+      "tpi_0003_obj5",
+      "tpi_0003_obj6",
+      "tpi_0003_obj7",
+      "tpi_0003_obj8"
+    ],
+    "confidence": 0.3010868430137634
+  },
+  {
+    "question_id": "DEV-3-Q1",
+    "type": "count",
+    "question": "¿Cuántas instancias de la categoría \"jarrón\" aparecen en la imagen?",
+    "answer": "2",
+    "normalized_answer": 2,
+    "evidence": [
+      "tpi_0003_obj3",
+      "tpi_0003_obj4"
+    ],
+    "confidence": 0.4274539351463318
+  },
+  {
+    "question_id": "DEV-3-Q2",
+    "type": "existence",
+    "question": "¿Hay al menos una instancia de la categoría \"cinturón\" en la imagen?",
+    "answer": "no",
+    "normalized_answer": "no",
+    "evidence": [],
+    "confidence": 1.0
+  },
+  {
+    "question_id": "DEV-4-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 2 jersey, 2 skateboard, 1 helmet, 1 baseball bat y 1 short pants.",
+    "normalized_answer": "La escena contiene 2 jersey, 2 skateboard, 1 helmet, 1 baseball bat y 1 short pants.",
+    "evidence": [
+      "tpi_0004_obj1",
+      "tpi_0004_obj2",
+      "tpi_0004_obj3",
+      "tpi_0004_obj4",
+      "tpi_0004_obj5",
+      "tpi_0004_obj6",
+      "tpi_0004_obj7",
+      "tpi_0004_obj8",
+      "tpi_0004_obj9",
+      "tpi_0004_obj10"
+    ],
+    "confidence": 0.3188041150569916
+  },
+  {
+    "question_id": "DEV-4-Q1",
+    "type": "count",
+    "question": "¿Cuántas instancias de la categoría \"pantalones\" aparecen en la imagen?",
+    "answer": "0",
+    "normalized_answer": 0,
+    "evidence": [],
+    "confidence": 1.0
+  },
+  {
+    "question_id": "DEV-4-Q2",
+    "type": "existence",
+    "question": "¿Hay al menos una instancia de la categoría \"sofá\" en la imagen?",
+    "answer": "no",
+    "normalized_answer": "no",
+    "evidence": [],
+    "confidence": 1.0
+  },
+  {
+    "question_id": "DEV-6-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 2 necklace, 2 handbag, 1 earring, 1 sunglasses y 1 cell phone.",
+    "normalized_answer": "La escena contiene 2 necklace, 2 handbag, 1 earring, 1 sunglasses y 1 cell phone.",
+    "evidence": [
+      "tpi_0006_obj1",
+      "tpi_0006_obj2",
+      "tpi_0006_obj3",
+      "tpi_0006_obj4",
+      "tpi_0006_obj5",
+      "tpi_0006_obj6",
+      "tpi_0006_obj7",
+      "tpi_0006_obj8",
+      "tpi_0006_obj9",
+      "tpi_0006_obj10",
+      "tpi_0006_obj11",
+      "tpi_0006_obj12"
+    ],
+    "confidence": 0.31072941422462463
+  },
+  {
+    "question_id": "DEV-6-Q1",
+    "type": "count",
+    "question": "¿Cuántas instancias de la categoría \"bolso\" aparecen en la imagen?",
+    "answer": "2",
+    "normalized_answer": 2,
+    "evidence": [
+      "tpi_0006_obj6",
+      "tpi_0006_obj7"
+    ],
+    "confidence": 0.6145344376564026
+  },
+  {
+    "question_id": "DEV-6-Q2",
+    "type": "existence",
+    "question": "¿Hay al menos una instancia de la categoría \"plato\" en la imagen?",
+    "answer": "no",
+    "normalized_answer": "no",
+    "evidence": [],
+    "confidence": 1.0
+  },
+  {
+    "question_id": "DEV-5-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 4 plate, 2 bracelet, 2 knife, 1 clock y 1 dress.",
+    "normalized_answer": "La escena contiene 4 plate, 2 bracelet, 2 knife, 1 clock y 1 dress.",
+    "evidence": [
+      "tpi_0005_obj1",
+      "tpi_0005_obj2",
+      "tpi_0005_obj3",
+      "tpi_0005_obj4",
+      "tpi_0005_obj5",
+      "tpi_0005_obj6",
+      "tpi_0005_obj7",
+      "tpi_0005_obj8",
+      "tpi_0005_obj9",
+      "tpi_0005_obj10",
+      "tpi_0005_obj11",
+      "tpi_0005_obj12",
+      "tpi_0005_obj13",
+      "tpi_0005_obj14",
+      "tpi_0005_obj15",
+      "tpi_0005_obj16"
+    ],
+    "confidence": 0.3184387981891632
+  },
+  {
+    "question_id": "DEV-5-Q1",
+    "type": "count",
+    "question": "¿Cuántas instancias de la categoría \"tenedor\" aparecen en la imagen?",
+    "answer": "1",
+    "normalized_answer": 1,
+    "evidence": [
+      "tpi_0005_obj14"
+    ],
+    "confidence": 0.6150084137916565
+  },
+  {
+    "question_id": "DEV-5-Q2",
+    "type": "relation",
+    "question": "¿La instancia de \"reloj\" está por encima de la instancia de \"anillo\"?",
+    "answer": "yes",
+    "normalized_answer": "yes",
+    "evidence": [
+      "tpi_0005_obj1",
+      "tpi_0005_obj6"
+    ],
+    "confidence": 0.41572022438049316
+  },
+  {
+    "question_id": "DEV-7-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 1 baseball cap, 1 bench, 1 shirt, 1 jean y 1 skateboard.",
+    "normalized_answer": "La escena contiene 1 baseball cap, 1 bench, 1 shirt, 1 jean y 1 skateboard.",
+    "evidence": [
+      "tpi_0007_obj1",
+      "tpi_0007_obj2",
+      "tpi_0007_obj3",
+      "tpi_0007_obj4",
+      "tpi_0007_obj5",
+      "tpi_0007_obj6"
+    ],
+    "confidence": 0.3179599344730377
+  },
+  {
+    "question_id": "DEV-7-Q1",
+    "type": "count",
+    "question": "¿Cuántas instancias de la categoría \"zapato\" aparecen en la imagen?",
+    "answer": "0",
+    "normalized_answer": 0,
+    "evidence": [],
+    "confidence": 1.0
+  },
+  {
+    "question_id": "DEV-7-Q2",
+    "type": "relation",
+    "question": "¿La instancia de \"camisa\" está por encima de la instancia de \"patineta\"?",
+    "answer": "yes",
+    "normalized_answer": "yes",
+    "evidence": [
+      "tpi_0007_obj3",
+      "tpi_0007_obj5"
+    ],
+    "confidence": 0.3179599344730377
+  },
+  {
+    "question_id": "DEV-8-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 1 baseball cap, 1 necklace, 1 baseball glove, 1 bracelet y 1 jersey.",
+    "normalized_answer": "La escena contiene 1 baseball cap, 1 necklace, 1 baseball glove, 1 bracelet y 1 jersey.",
+    "evidence": [
+      "tpi_0008_obj1",
+      "tpi_0008_obj2",
+      "tpi_0008_obj3",
+      "tpi_0008_obj4",
+      "tpi_0008_obj5",
+      "tpi_0008_obj6",
+      "tpi_0008_obj7",
+      "tpi_0008_obj8",
+      "tpi_0008_obj9",
+      "tpi_0008_obj10"
+    ],
+    "confidence": 0.3341694474220276
+  },
+  {
+    "question_id": "DEV-8-Q1",
+    "type": "count",
+    "question": "¿Cuántas instancias de la categoría \"guante\" aparecen en la imagen?",
+    "answer": "1",
+    "normalized_answer": 1,
+    "evidence": [
+      "tpi_0008_obj8"
+    ],
+    "confidence": 0.4104999601840973
+  },
+  {
+    "question_id": "DEV-8-Q2",
+    "type": "relation",
+    "question": "¿La instancia de \"gorra de béisbol\" está por encima de la instancia de \"guante de béisbol\"?",
+    "answer": "yes",
+    "normalized_answer": "yes",
+    "evidence": [
+      "tpi_0008_obj1",
+      "tpi_0008_obj3"
+    ],
+    "confidence": 0.6252132654190063
+  },
+  {
+    "question_id": "DEV-9-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 1 television set, 1 flowerpot, 1 chair, 1 bench y 1 computer keyboard.",
+    "normalized_answer": "La escena contiene 1 television set, 1 flowerpot, 1 chair, 1 bench y 1 computer keyboard.",
+    "evidence": [
+      "tpi_0009_obj1",
+      "tpi_0009_obj2",
+      "tpi_0009_obj3",
+      "tpi_0009_obj4",
+      "tpi_0009_obj5",
+      "tpi_0009_obj6",
+      "tpi_0009_obj7"
+    ],
+    "confidence": 0.3285338580608368
+  },
+  {
+    "question_id": "DEV-9-Q1",
+    "type": "count",
+    "question": "¿Cuántas instancias de la categoría \"almohada\" aparecen en la imagen?",
+    "answer": "1",
+    "normalized_answer": 1,
+    "evidence": [
+      "tpi_0009_obj7"
+    ],
+    "confidence": 0.3285338580608368
+  },
+  {
+    "question_id": "DEV-9-Q2",
+    "type": "relation",
+    "question": "¿La instancia de \"teclado de computadora\" está a la derecha de la instancia de \"maceta\"?",
+    "answer": "no",
+    "normalized_answer": "no",
+    "evidence": [
+      "tpi_0009_obj5",
+      "tpi_0009_obj2"
+    ],
+    "confidence": 0.3437194526195526
+  },
+  {
+    "question_id": "DEV-10-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 3 pillow, 3 belt, 2 teddy bear, 1 clock y 1 drawer.",
+    "normalized_answer": "La escena contiene 3 pillow, 3 belt, 2 teddy bear, 1 clock y 1 drawer.",
+    "evidence": [
+      "tpi_0010_obj1",
+      "tpi_0010_obj2",
+      "tpi_0010_obj3",
+      "tpi_0010_obj4",
+      "tpi_0010_obj5",
+      "tpi_0010_obj6",
+      "tpi_0010_obj7",
+      "tpi_0010_obj8",
+      "tpi_0010_obj9",
+      "tpi_0010_obj10",
+      "tpi_0010_obj11",
+      "tpi_0010_obj12",
+      "tpi_0010_obj13",
+      "tpi_0010_obj14",
+      "tpi_0010_obj15",
+      "tpi_0010_obj16",
+      "tpi_0010_obj17"
+    ],
+    "confidence": 0.3054434359073639
+  },
+  {
+    "question_id": "DEV-10-Q1",
+    "type": "count",
+    "question": "¿Cuántas instancias de la categoría \"mango\" aparecen en la imagen?",
+    "answer": "0",
+    "normalized_answer": 0,
+    "evidence": [],
+    "confidence": 1.0
+  },
+  {
+    "question_id": "DEV-10-Q2",
+    "type": "relation",
+    "question": "¿La instancia de \"computadora portátil\" está a la derecha de la instancia de \"jean\"?",
+    "answer": "no",
+    "normalized_answer": "no",
+    "evidence": [
+      "tpi_0010_obj15",
+      "tpi_0010_obj12"
+    ],
+    "confidence": 0.4436442255973816
+  },
+  {
+    "question_id": "DEV-11-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 2 computer monitor, 1 flowerpot, 1 bottle, 1 laptop y 1 computer keyboard.",
+    "normalized_answer": "La escena contiene 2 computer monitor, 1 flowerpot, 1 bottle, 1 laptop y 1 computer keyboard.",
+    "evidence": [
+      "tpi_0011_obj1",
+      "tpi_0011_obj2",
+      "tpi_0011_obj3",
+      "tpi_0011_obj4",
+      "tpi_0011_obj5",
+      "tpi_0011_obj6",
+      "tpi_0011_obj7",
+      "tpi_0011_obj8"
+    ],
+    "confidence": 0.30485936999320984
+  },
+  {
+    "question_id": "DEV-11-Q1",
+    "type": "existence",
+    "question": "¿Hay al menos una instancia de la categoría \"mouse de computadora\" en la imagen?",
+    "answer": "yes",
+    "normalized_answer": "yes",
+    "evidence": [
+      "tpi_0011_obj7"
+    ],
+    "confidence": 0.6335399150848389
+  },
+  {
+    "question_id": "DEV-11-Q2",
+    "type": "position",
+    "question": "¿En qué zona de la imagen está la instancia de \"teléfono celular\"?",
+    "answer": "bottom_left",
+    "normalized_answer": "bottom_left",
+    "evidence": [
+      "tpi_0011_obj8"
+    ],
+    "confidence": 0.31819888949394226
+  },
+  {
+    "question_id": "DEV-12-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 4 boat, 2 signboard, 1 sock, 1 bench y 1 short pants.",
+    "normalized_answer": "La escena contiene 4 boat, 2 signboard, 1 sock, 1 bench y 1 short pants.",
+    "evidence": [
+      "tpi_0012_obj1",
+      "tpi_0012_obj2",
+      "tpi_0012_obj3",
+      "tpi_0012_obj4",
+      "tpi_0012_obj5",
+      "tpi_0012_obj6",
+      "tpi_0012_obj7",
+      "tpi_0012_obj8",
+      "tpi_0012_obj9"
+    ],
+    "confidence": 0.3509250581264496
+  },
+  {
+    "question_id": "DEV-12-Q1",
+    "type": "existence",
+    "question": "¿Hay al menos una instancia de la categoría \"cartel\" en la imagen?",
+    "answer": "yes",
+    "normalized_answer": "yes",
+    "evidence": [
+      "tpi_0012_obj1",
+      "tpi_0012_obj2"
+    ],
+    "confidence": 0.3509250581264496
+  },
+  {
+    "question_id": "DEV-12-Q2",
+    "type": "position",
+    "question": "¿En qué zona de la imagen está la instancia de \"banco\"?",
+    "answer": "center",
+    "normalized_answer": "center",
+    "evidence": [
+      "tpi_0012_obj4"
+    ],
+    "confidence": 0.6092932224273682
+  },
+  {
+    "question_id": "DEV-14-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 2 wall socket, 2 sofa, 1 lamp, 1 clock y 1 faucet.",
+    "normalized_answer": "La escena contiene 2 wall socket, 2 sofa, 1 lamp, 1 clock y 1 faucet.",
+    "evidence": [
+      "tpi_0014_obj1",
+      "tpi_0014_obj2",
+      "tpi_0014_obj3",
+      "tpi_0014_obj4",
+      "tpi_0014_obj5",
+      "tpi_0014_obj6",
+      "tpi_0014_obj7",
+      "tpi_0014_obj8",
+      "tpi_0014_obj9",
+      "tpi_0014_obj10",
+      "tpi_0014_obj11",
+      "tpi_0014_obj12"
+    ],
+    "confidence": 0.3048894703388214
+  },
+  {
+    "question_id": "DEV-14-Q1",
+    "type": "existence",
+    "question": "¿Hay al menos una instancia de la categoría \"televisor\" en la imagen?",
+    "answer": "yes",
+    "normalized_answer": "yes",
+    "evidence": [
+      "tpi_0014_obj4"
+    ],
+    "confidence": 0.7616701722145081
+  },
+  {
+    "question_id": "DEV-14-Q2",
+    "type": "position",
+    "question": "¿En qué zona de la imagen está la instancia de \"mochila\"?",
+    "answer": "middle_left",
+    "normalized_answer": "middle_left",
+    "evidence": [
+      "tpi_0014_obj8"
+    ],
+    "confidence": 0.4524121582508087
+  },
+  {
+    "question_id": "DEV-20-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 5 person, 2 surfboard, 2 sunglasses, 1 airplane y 1 hat.",
+    "normalized_answer": "La escena contiene 5 person, 2 surfboard, 2 sunglasses, 1 airplane y 1 hat.",
+    "evidence": [
+      "tpi_0020_obj1",
+      "tpi_0020_obj2",
+      "tpi_0020_obj3",
+      "tpi_0020_obj4",
+      "tpi_0020_obj5",
+      "tpi_0020_obj6",
+      "tpi_0020_obj7",
+      "tpi_0020_obj8",
+      "tpi_0020_obj9",
+      "tpi_0020_obj10",
+      "tpi_0020_obj11",
+      "tpi_0020_obj12",
+      "tpi_0020_obj13",
+      "tpi_0020_obj14"
+    ],
+    "confidence": 0.3173868656158447
+  },
+  {
+    "question_id": "DEV-20-Q1",
+    "type": "existence",
+    "question": "¿Hay al menos una instancia de la categoría \"perro\" en la imagen?",
+    "answer": "no",
+    "normalized_answer": "no",
+    "evidence": [],
+    "confidence": 1.0
+  },
+  {
+    "question_id": "DEV-20-Q2",
+    "type": "position",
+    "question": "¿En qué zona de la imagen está la instancia de \"tabla de surf\"?",
+    "answer": "unsupported",
+    "normalized_answer": "unsupported",
+    "evidence": [],
+    "confidence": 0.0
+  },
+  {
+    "question_id": "DEV-23-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 4 cup, 2 flower arrangement, 1 person, 1 earring y 1 chair.",
+    "normalized_answer": "La escena contiene 4 cup, 2 flower arrangement, 1 person, 1 earring y 1 chair.",
+    "evidence": [
+      "tpi_0023_obj1",
+      "tpi_0023_obj2",
+      "tpi_0023_obj3",
+      "tpi_0023_obj4",
+      "tpi_0023_obj5",
+      "tpi_0023_obj6",
+      "tpi_0023_obj7",
+      "tpi_0023_obj8",
+      "tpi_0023_obj9",
+      "tpi_0023_obj10",
+      "tpi_0023_obj11",
+      "tpi_0023_obj12",
+      "tpi_0023_obj13",
+      "tpi_0023_obj14",
+      "tpi_0023_obj15",
+      "tpi_0023_obj16"
+    ],
+    "confidence": 0.30860158801078796
+  },
+  {
+    "question_id": "DEV-23-Q1",
+    "type": "existence",
+    "question": "¿Hay al menos una instancia de la categoría \"servilleta\" en la imagen?",
+    "answer": "no",
+    "normalized_answer": "no",
+    "evidence": [],
+    "confidence": 1.0
+  },
+  {
+    "question_id": "DEV-23-Q2",
+    "type": "position",
+    "question": "¿En qué zona de la imagen está la instancia de \"cuchillo\"?",
+    "answer": "center",
+    "normalized_answer": "center",
+    "evidence": [
+      "tpi_0023_obj9"
+    ],
+    "confidence": 0.36886516213417053
+  },
+  {
+    "question_id": "DEV-15-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 5 person, 5 cup, 3 vent, 2 spectacles y 2 watch.",
+    "normalized_answer": "La escena contiene 5 person, 5 cup, 3 vent, 2 spectacles y 2 watch.",
+    "evidence": [
+      "tpi_0015_obj1",
+      "tpi_0015_obj2",
+      "tpi_0015_obj3",
+      "tpi_0015_obj4",
+      "tpi_0015_obj5",
+      "tpi_0015_obj6",
+      "tpi_0015_obj7",
+      "tpi_0015_obj8",
+      "tpi_0015_obj9",
+      "tpi_0015_obj10",
+      "tpi_0015_obj11",
+      "tpi_0015_obj12",
+      "tpi_0015_obj13",
+      "tpi_0015_obj14",
+      "tpi_0015_obj15",
+      "tpi_0015_obj16",
+      "tpi_0015_obj17",
+      "tpi_0015_obj18",
+      "tpi_0015_obj19",
+      "tpi_0015_obj20",
+      "tpi_0015_obj21",
+      "tpi_0015_obj22",
+      "tpi_0015_obj23",
+      "tpi_0015_obj24",
+      "tpi_0015_obj25",
+      "tpi_0015_obj26",
+      "tpi_0015_obj27",
+      "tpi_0015_obj28",
+      "tpi_0015_obj29",
+      "tpi_0015_obj30",
+      "tpi_0015_obj31",
+      "tpi_0015_obj32"
+    ],
+    "confidence": 0.301569402217865
+  },
+  {
+    "question_id": "DEV-15-Q1",
+    "type": "relation",
+    "question": "¿La instancia de \"botella\" está a la izquierda de la instancia de \"correa\"?",
+    "answer": "unsupported",
+    "normalized_answer": "unsupported",
+    "evidence": [],
+    "confidence": 0.0
+  },
+  {
+    "question_id": "DEV-15-Q2",
+    "type": "size",
+    "question": "¿Qué tamaño relativo tiene la instancia de \"collar\"?",
+    "answer": "small",
+    "normalized_answer": "small",
+    "evidence": [
+      "tpi_0015_obj12"
+    ],
+    "confidence": 0.7163187265396118
+  },
+  {
+    "question_id": "DEV-19-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 2 plastic bag, 1 spectacles, 1 table, 1 watch y 1 refrigerator.",
+    "normalized_answer": "La escena contiene 2 plastic bag, 1 spectacles, 1 table, 1 watch y 1 refrigerator.",
+    "evidence": [
+      "tpi_0019_obj1",
+      "tpi_0019_obj2",
+      "tpi_0019_obj3",
+      "tpi_0019_obj4",
+      "tpi_0019_obj5",
+      "tpi_0019_obj6",
+      "tpi_0019_obj7"
+    ],
+    "confidence": 0.3168889284133911
+  },
+  {
+    "question_id": "DEV-19-Q1",
+    "type": "relation",
+    "question": "¿La instancia de \"bolsa de plástico\" está a la izquierda de la instancia de \"cama\"?",
+    "answer": "unsupported",
+    "normalized_answer": "unsupported",
+    "evidence": [],
+    "confidence": 0.0
+  },
+  {
+    "question_id": "DEV-19-Q2",
+    "type": "size",
+    "question": "¿Qué tamaño relativo tiene la instancia de \"reloj de pulsera\"?",
+    "answer": "small",
+    "normalized_answer": "small",
+    "evidence": [
+      "tpi_0019_obj3"
+    ],
+    "confidence": 0.3834226727485657
+  },
+  {
+    "question_id": "DEV-22-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 5 horse, 2 banner, 1 awning, 1 sunglasses y 1 hat.",
+    "normalized_answer": "La escena contiene 5 horse, 2 banner, 1 awning, 1 sunglasses y 1 hat.",
+    "evidence": [
+      "tpi_0022_obj1",
+      "tpi_0022_obj2",
+      "tpi_0022_obj3",
+      "tpi_0022_obj4",
+      "tpi_0022_obj5",
+      "tpi_0022_obj6",
+      "tpi_0022_obj7",
+      "tpi_0022_obj8",
+      "tpi_0022_obj9",
+      "tpi_0022_obj10",
+      "tpi_0022_obj11",
+      "tpi_0022_obj12"
+    ],
+    "confidence": 0.3202018439769745
+  },
+  {
+    "question_id": "DEV-22-Q1",
+    "type": "relation",
+    "question": "¿La instancia de \"toldo\" está por debajo de la instancia de \"vaca\"?",
+    "answer": "no",
+    "normalized_answer": "no",
+    "evidence": [
+      "tpi_0022_obj1",
+      "tpi_0022_obj12"
+    ],
+    "confidence": 0.4062538743019104
+  },
+  {
+    "question_id": "DEV-22-Q2",
+    "type": "size",
+    "question": "¿Qué tamaño relativo tiene la instancia de \"gafas\"?",
+    "answer": "unsupported",
+    "normalized_answer": "unsupported",
+    "evidence": [],
+    "confidence": 0.0
+  },
+  {
+    "question_id": "DEV-24-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 3 button, 3 bottle, 2 dress, 2 knob y 2 chair.",
+    "normalized_answer": "La escena contiene 3 button, 3 bottle, 2 dress, 2 knob y 2 chair.",
+    "evidence": [
+      "tpi_0024_obj1",
+      "tpi_0024_obj2",
+      "tpi_0024_obj3",
+      "tpi_0024_obj4",
+      "tpi_0024_obj5",
+      "tpi_0024_obj6",
+      "tpi_0024_obj7",
+      "tpi_0024_obj8",
+      "tpi_0024_obj9",
+      "tpi_0024_obj10",
+      "tpi_0024_obj11",
+      "tpi_0024_obj12",
+      "tpi_0024_obj13",
+      "tpi_0024_obj14",
+      "tpi_0024_obj15",
+      "tpi_0024_obj16",
+      "tpi_0024_obj17",
+      "tpi_0024_obj18",
+      "tpi_0024_obj19",
+      "tpi_0024_obj20",
+      "tpi_0024_obj21",
+      "tpi_0024_obj22",
+      "tpi_0024_obj23"
+    ],
+    "confidence": 0.30123087763786316
+  },
+  {
+    "question_id": "DEV-24-Q1",
+    "type": "relation",
+    "question": "¿La instancia de \"refrigerador\" está a la derecha de la instancia de \"cuenco\"?",
+    "answer": "no",
+    "normalized_answer": "no",
+    "evidence": [
+      "tpi_0024_obj3",
+      "tpi_0024_obj10"
+    ],
+    "confidence": 0.6030156016349792
+  },
+  {
+    "question_id": "DEV-24-Q2",
+    "type": "size",
+    "question": "¿Qué tamaño relativo tiene la instancia de \"mantel\"?",
+    "answer": "large",
+    "normalized_answer": "large",
+    "evidence": [
+      "tpi_0024_obj23"
+    ],
+    "confidence": 0.5580140948295593
+  },
+  {
+    "question_id": "DEV-25-DESC",
+    "type": "description",
+    "question": "Describí brevemente la escena usando sólo información sustentada por el SceneJSON.",
+    "answer": "La escena contiene 2 sink, 1 flower arrangement, 1 mirror, 1 necklace y 1 faucet.",
+    "normalized_answer": "La escena contiene 2 sink, 1 flower arrangement, 1 mirror, 1 necklace y 1 faucet.",
+    "evidence": [
+      "tpi_0025_obj1",
+      "tpi_0025_obj2",
+      "tpi_0025_obj3",
+      "tpi_0025_obj4",
+      "tpi_0025_obj5",
+      "tpi_0025_obj6",
+      "tpi_0025_obj7",
+      "tpi_0025_obj8",
+      "tpi_0025_obj9",
+      "tpi_0025_obj10",
+      "tpi_0025_obj11"
+    ],
+    "confidence": 0.31491512060165405
+  },
+  {
+    "question_id": "DEV-25-Q1",
+    "type": "relation",
+    "question": "¿La instancia de \"caja\" está por debajo de la instancia de \"pancarta\"?",
+    "answer": "unsupported",
+    "normalized_answer": "unsupported",
+    "evidence": [],
+    "confidence": 0.0
+  },
+  {
+    "question_id": "DEV-25-Q2",
+    "type": "size",
+    "question": "¿Qué tamaño relativo tiene la instancia de \"elefante\"?",
+    "answer": "unsupported",
+    "normalized_answer": "unsupported",
+    "evidence": [],
+    "confidence": 0.0
+  }
+]

@@ -195,11 +195,30 @@ Corrida sobre las **60 consignas reales** de `questions_dev.jsonl` contra los `S
 
 De los 11 casos `unsupported` en `position`/`size`/`relation`, **9 son por ambigüedad** (el detector encontró más de una instancia de una categoría que la pregunta presupone única — ej. "tabla de surf" con 10 matches en una imagen) y solo 2 por falta de detección real (`strap`, `spectacles` con 0 matches). Esto es una **consecuencia directa y medible del umbral de confianza permisivo (0.1)** elegido en la Etapa 2 para maximizar recall: ese mismo umbral que ayuda al F1 de detección perjudica la tasa de respuestas resueltas en QA, porque genera más instancias "de más" que rompen el supuesto de unicidad. Es un argumento concreto a favor de priorizar el experimento controlado de umbral de confianza (Tarea 12) — no solo por el F1 de detección, sino por su efecto en cascada sobre QA.
 
+### 4.7 Proceso experimental — línea base vs. umbral de confianza alternativo
+
+Línea base: `confidence_threshold=0.1` (secciones 4.1/4.2/4.3/4.4/4.6). Alternativa concreta de mejora, motivada por el hallazgo de 4.6: `confidence_threshold=0.3`, manteniendo todo lo demás igual (`nms_iou_threshold=0.5`, mismo detector, mismo checkpoint de SAM2). Pipeline completa (detección→segmentación→SceneJSON→propiedades→QA) corrida de nuevo sobre las 120 imágenes con el umbral nuevo (`scripts/run_threshold_experiment.py`, resultados en [`reports/experiments/threshold_0.3/`](reports/experiments/threshold_0.3)):
+
+| Métrica | Baseline (0.1) | Alternativa (0.3) |
+|---|---|---|
+| Predicciones totales | 7293 | 1585 |
+| Precision | 0.512 | **0.854** |
+| Recall | **0.705** | 0.436 |
+| **F1 detección** | **0.593** | 0.577 |
+| Escenas válidas contra schema | 120/120 | 120/120 |
+| `count` exact-match | 3/10 | 3/10 |
+| `existence` accuracy | 9/10 | **10/10** |
+| `unsupported` (position+size+relation) | 11/20 (55%) | **6/20 (30%)** |
+
+**Conclusión, sin simplificar de más:** subir el umbral **no es una mejora neta simple** — confirma la hipótesis de 4.6 (la ambigüedad en QA bajó de 11 a 6 casos, y `existence` mejoró a 10/10), pero **el F1 de detección bajó levemente** (0.593→0.577): el salto de precision (+0.34) no compensa la caída de recall (-0.27) en términos de F1 armónico. `count` exact-match no cambió (3/10 en ambos) — tener menos falsos positivos no alcanzó para compensar los nuevos falsos negativos en el conteo.
+
+Dado que el `PipelineScore` de la competencia pondera **40% F1 de cajas + 35% F1 de máscaras** contra solo **10% QA**, el componente de detección domina el puntaje por un margen grande — así que, mirando el leaderboard, **el baseline (0.1) sigue siendo la mejor elección global** pese a que 0.3 da mejores respuestas de QA. Esto es justo el tipo de trade-off entre etapas que pide analizar el enunciado: la métrica "más alta" en una etapa aislada (QA) no necesariamente es la mejor decisión para el sistema completo.
+
 ## 5. Discusión y análisis de errores
 
-**Precision (0.512) bastante más baja que recall (0.705):** con un umbral de confianza permisivo (0.1) el detector prioriza no perderse objetos a costa de más falsos positivos — esperable dado que el EDA mostró que la mayoría de los objetos son chicos (mediana `area_ratio`≈0.003) y por lo tanto difíciles de detectar con confianza alta. Queda pendiente la comparación controlada (sección "Proceso experimental" del plan) con un umbral más conservador (ej. 0.3) para ver el trade-off precision/recall y si mejora el F1 compuesto.
+**Precision (0.512) bastante más baja que recall (0.705) en el baseline:** con un umbral de confianza permisivo (0.1) el detector prioriza no perderse objetos a costa de más falsos positivos — esperable dado que el EDA mostró que la mayoría de los objetos son chicos (mediana `area_ratio`≈0.003) y por lo tanto difíciles de detectar con confianza alta. La comparación controlada (sección 4.7) confirmó que subir el umbral a 0.3 sí mejora precision (0.854) pero **no mejora el F1 compuesto** (0.577 vs 0.593) — el baseline queda como mejor elección para el leaderboard pese a tener peor precision aislada.
 
-**Error de propagación detección→QA (ver detalle en 4.6):** el 70% de las preguntas de `count` no da el número exacto, y 9 de los 11 `unsupported` en `position`/`size`/`relation` son por ambigüedad (más de una instancia detectada donde se presupone una sola) — ambos son consecuencia directa del umbral de confianza permisivo, no errores de lógica en `qa_engine.py`. Es la evidencia más concreta que tenemos hasta ahora de que el umbral de detección no es solo un número de F1 aislado: se propaga y degrada toda la capa de preguntas.
+**Error de propagación detección→QA (ver detalle en 4.6 y 4.7):** el 70% de las preguntas de `count` no da el número exacto en ninguno de los dos umbrales probados, y en el baseline 9 de los 11 `unsupported` en `position`/`size`/`relation` son por ambigüedad (más de una instancia detectada donde se presupone una sola) — ambos son consecuencia del umbral de confianza, no errores de lógica en `qa_engine.py`. El experimento de 4.7 confirma la dirección del efecto (subir el umbral baja la ambigüedad de 11 a 6 casos) pero también muestra que no es gratis: ese mismo cambio empeora el F1 de detección, que pesa mucho más en el `PipelineScore` (75%) que QA (10%).
 
 _(pendiente: inspección cualitativa de casos fallidos — FP sistemáticos por categoría, FN concentrados en objetos muy chicos o muy ocluidos)_
 

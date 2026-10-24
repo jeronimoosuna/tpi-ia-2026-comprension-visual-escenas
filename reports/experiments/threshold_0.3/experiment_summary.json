@@ -1,0 +1,26 @@
+{
+  "confidence_threshold": 0.3,
+  "nms_iou_threshold": 0.5,
+  "total_time_seconds": 517.6817877292633,
+  "num_predictions": 1585,
+  "detection": {
+    "precision": 0.853551912568306,
+    "recall": 0.4363128491620112,
+    "f1": 0.577449168207024,
+    "tp": 781,
+    "fp": 134,
+    "fn": 1009,
+    "ignored_predictions": 670
+  },
+  "schema_valid_scenes": 120,
+  "schema_total_scenes": 120,
+  "qa_count_exact_match": 3,
+  "qa_count_total": 10,
+  "qa_existence_correct": 10,
+  "qa_existence_total": 10,
+  "qa_unsupported_by_type": {
+    "position": 1,
+    "relation": 3,
+    "size": 2
+  }
+}
