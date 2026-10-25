@@ -111,8 +111,8 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
 
 ## 7. Tareas pendientes (en el orden del plan original)
 
-1. Completar Portada de `REPORTE.md` (integrantes, nro. de grupo) — **es lo único que falta en todo el reporte técnico**, necesario también para el nombre de archivo final `TPI_IA_2026P_[nro_de_grupo]`. Requiere al usuario, ningún asistente puede completarlo.
-2. Consolidar todo en una única notebook de Kaggle (el usuario la sube manualmente) — todo el código fuente ya existe y está probado en `src/`/`scripts/`, falta el trabajo mecánico de volcarlo a celdas organizadas por sección.
+1. Completar Portada de `REPORTE.md` (integrantes, nro. de grupo) — **es lo único que falta en todo el reporte técnico**, necesario también para el nombre de archivo final `TPI_IA_2026P_[nro_de_grupo]` (incluye renombrar `TPI_IA_2026P_notebook.ipynb`). Requiere al usuario, ningún asistente puede completarlo.
+2. **El usuario está probando `TPI_IA_2026P_notebook.ipynb` en Kaggle de verdad** (se le entregó el archivo, pidió probarlo él mismo) — el siguiente paso de cualquier asistente es esperar su feedback de esa corrida real antes de tocar la notebook de nuevo. Localmente se validó con un smoke test (3 imágenes dev + 2 test, todas las 9 etapas incluido el experimento controlado) pero **nunca se ejecutó en el entorno real de Kaggle** — la detección automática de la ruta `/kaggle/input/...` es la pieza con más incertidumbre real, al no haber podido probarla ahí directamente.
 3. Mitigar o al menos acotar la alucinación de `generate_description_llm` (`REPORTE.md` 4.8/6) — no es obligatorio para completar etapas, pero es la limitación más seria medida y vale la pena intentar un prompt más restrictivo o una verificación post-hoc.
 4. Inspección cualitativa de casos fallidos puntuales (FP sistemáticos por categoría, FN concentrados en objetos chicos/ocluidos) — marcada como pendiente dentro de la sección 5 del propio `REPORTE.md`.
 5. (Opcional, barato) Re-correr `run_detection.py`/`run_segmentation.py` con tracing ya activo para que `reports/trace/pipeline.jsonl` cubra la pipeline completa — no es urgente porque los resultados ya existen y son válidos, pero suma si hay tiempo.
@@ -121,7 +121,7 @@ Niveles de logro (acumulativos): aprobado (F1 detección ≥0.40 + pipeline comp
 
 ## 8. Próximo paso recomendado
 
-**Todo el trabajo de implementación y experimentación está terminado** — las 9 etapas del enunciado, el entregable final de 80 filas, y las 4 funciones de `metrics.py` están completas y verificadas con datos reales (ver sección 9). Lo único que falta no es código: **Portada de `REPORTE.md`** (punto 1 de arriba) requiere al usuario directamente, y **consolidar la notebook de Kaggle** (punto 2) es el siguiente trabajo mecánico real que puede hacer un asistente — consultar con el usuario si prefiere ese orden o empezar por la inspección cualitativa de casos fallidos (punto 4) antes de consolidar.
+**Todo el trabajo de implementación y experimentación está terminado**, incluida la notebook consolidada (ver sección 9 y punto 2 de arriba). Lo único pendiente ahora mismo es **esperar el resultado de la corrida real en Kaggle que está haciendo el usuario** — no hay nada más para hacer en paralelo sobre la notebook hasta tener ese feedback (podría requerir ajustes si la ruta de datos real de Kaggle difiere de lo asumido, o si surge algún límite de tiempo/memoria que no se vio en el smoke test local). Mientras tanto, lo único verdaderamente desacoplado es la **Portada de `REPORTE.md`** (punto 1), que requiere al usuario de todos modos.
 
 ## 9. Mapeo con las etapas oficiales del enunciado
 
