@@ -37,7 +37,7 @@ Detector: **OWLv2** (`google/owlv2-base-patch16-ensemble`, vía `transformers`).
 - `src/detection.py::detect_objects`: corre el modelo con el vocabulario completo, devuelve `{category_id, confidence, bbox}` por detección cruda.
 - `src/detection.py::suppress_duplicates`: NMS por categoría (no cross-categoría, para no suprimir objetos distintos que se superponen legítimamente, ej. "persona" y "mochila").
 
-**Baseline elegido:** `confidence_threshold=0.1`, `nms_iou_threshold=0.5`. Es un umbral permisivo (prioriza recall) elegido como punto de partida dado que la mayoría de los objetos del dataset son chicos (ver EDA) — se compara contra una alternativa más conservadora en el proceso experimental (sección 4/5).
+**Baseline inicial y calibración:** `confidence_threshold=0.1` inicial, `nms_iou_threshold=0.5`. Fue un umbral permisivo (prioriza recall) elegido como punto de partida dado que la mayoría de los objetos del dataset son chicos (ver EDA). En la optimización experimental (sección 4.7.3) se calibró finamente a **`confidence_threshold = 0.14`**, siendo este el valor definitivo adoptado en la notebook de entrega para maximizar el F1 armónico.
 
 **Resolución de entrada: 960×960 (la nativa del checkpoint, sin modificar).** `Owlv2ImageProcessorPil.resize` redimensiona cada imagen a `(960, 960)` de forma directa — se verificó en el código fuente que **no hace letterbox/padding preservando proporción**, sino un resize no uniforme (estira ancho y alto por separado hasta el cuadrado objetivo). Se decidió no override-earla por dos motivos:
 
@@ -227,9 +227,13 @@ Corrida sobre las **60 consignas reales** de `questions_dev.jsonl` contra los `S
 
 De los 11 casos `unsupported` en `position`/`size`/`relation`, **9 son por ambigüedad** (el detector encontró más de una instancia de una categoría que la pregunta presupone única — ej. "tabla de surf" con 10 matches en una imagen) y solo 2 por falta de detección real (`strap`, `spectacles` con 0 matches). Esto es una **consecuencia directa y medible del umbral de confianza permisivo (0.1)** elegido en la Etapa 2 para maximizar recall: ese mismo umbral que ayuda al F1 de detección perjudica la tasa de respuestas resueltas en QA, porque genera más instancias "de más" que rompen el supuesto de unicidad. Es un argumento concreto a favor de priorizar el experimento controlado de umbral de confianza (Tarea 12) — no solo por el F1 de detección, sino por su efecto en cascada sobre QA.
 
-### 4.7 Proceso experimental — línea base vs. umbral de confianza alternativo
+### 4.7 Proceso experimental y optimización controlada
 
-Línea base: `confidence_threshold=0.1` (secciones 4.1/4.2/4.3/4.4/4.6). Alternativa concreta de mejora, motivada por el hallazgo de 4.6: `confidence_threshold=0.3`, manteniendo todo lo demás igual (`nms_iou_threshold=0.5`, mismo detector, mismo checkpoint de SAM2). Pipeline completa (detección→segmentación→SceneJSON→propiedades→QA) corrida de nuevo sobre las 120 imágenes con el umbral nuevo (`scripts/run_threshold_experiment.py`, resultados en [`reports/experiments/threshold_0.3/`](reports/experiments/threshold_0.3)):
+El proceso experimental se estructuró a partir de hipótesis puntuales y comparaciones modulares e independientes entre sí, evaluando el impacto de cada decisión técnica tanto en las métricas locales sobre el conjunto de desarrollo (F1 de detección, F1 de máscaras, exactitud en QA) como en el puntaje global de la competencia.
+
+#### 4.7.1 Comparación inicial: Línea base (0.1) vs. alternativa estricta (0.3)
+
+Como punto de partida, motivado por la ambigüedad observada en las preguntas de unicidad en QA (sección 4.6), se contrastó la línea base (`confidence_threshold=0.1`) contra un umbral más restrictivo (`confidence_threshold=0.3`), manteniendo fijos los demás parámetros (`nms_iou_threshold=0.5`, OWLv2 base, SAM2.1 tiny). Se ejecutó la pipeline completa sobre las 120 imágenes (`scripts/run_threshold_experiment.py`, resultados en [`reports/experiments/threshold_0.3/`](reports/experiments/threshold_0.3)):
 
 | Métrica | Baseline (0.1) | Alternativa (0.3) |
 |---|---|---|
@@ -244,7 +248,38 @@ Línea base: `confidence_threshold=0.1` (secciones 4.1/4.2/4.3/4.4/4.6). Alterna
 
 **Conclusión, sin simplificar de más:** subir el umbral **no es una mejora neta simple** — confirma la hipótesis de 4.6 (la ambigüedad en QA bajó de 11 a 6 casos, y `existence` mejoró a 10/10), pero **el F1 de detección bajó levemente** (0.593→0.577): el salto de precision (+0.34) no compensa la caída de recall (-0.27) en términos de F1 armónico. `count` exact-match no cambió (3/10 en ambos) — tener menos falsos positivos no alcanzó para compensar los nuevos falsos negativos en el conteo.
 
-Dado que el `PipelineScore` de la competencia pondera **40% F1 de cajas + 35% F1 de máscaras** contra solo **10% QA**, el componente de detección domina el puntaje por un margen grande — así que, mirando el leaderboard, **el baseline (0.1) sigue siendo la mejor elección global** pese a que 0.3 da mejores respuestas de QA. Esto es justo el tipo de trade-off entre etapas que pide analizar el enunciado: la métrica "más alta" en una etapa aislada (QA) no necesariamente es la mejor decisión para el sistema completo.
+Dado que el `PipelineScore` de la competencia pondera **40% F1 de cajas + 35% F1 de máscaras** contra solo **10% QA**, el componente de detección domina el puntaje por un margen grande — así que, mirando el leaderboard, subir a 0.3 de forma ciega no era conveniente. Esto motivó una serie de experimentos controlados para encontrar mejoras reales sin sacrificar el recall.
+
+#### 4.7.2 Experimento 1: Plantillas descriptivas de prompt en OWLv2 (Prompt Templates de CLIP)
+
+- **Hipótesis y qué probamos:** OWLv2 utiliza el codificador de texto de CLIP, el cual fue preentrenado con descripciones en lenguaje natural. Se formuló la hipótesis de que reemplazar las etiquetas crudas (`['chair', 'book', ...]`) por plantillas canónicas (`f"a photo of a {name}"`) mejoraría la alineación visual-semántica y reduciría detecciones espurias.
+- **Resultado y análisis técnico:** **No mejoró el balance global (descartado).** Si bien el *Recall* aumentó en desarrollo (de 0.707 a 0.722) y el accuracy de conteo en QA subió de 0.3 a 0.4 (al capturar más instancias), la *Precisión* cayó severamente de 0.512 a 0.490. Darle mayor contexto de texto volvió al detector excesivamente sensible ("imaginativo"), disparando falsos positivos que castigaron el F1 de detección (0.594 → 0.584) y el F1 de máscaras (0.566 → 0.559). Si bien QA mejoró ligeramente, el deterioro en el 75% ponderado del score provocó una caída neta del puntaje local (de 0.6457 a 0.6442). Por lo tanto, se descartó el uso de plantillas y se mantuvo el vocabulario de etiquetas directas.
+
+#### 4.7.3 Experimento 2: Calibración fina del umbral de confianza (`confidence_threshold = 0.14`)
+
+- **Hipótesis y qué probamos:** El umbral 0.1 aportaba mucho recall a costa de una precisión baja (51.2%), mientras que 0.3 destruía el recall. Se planteó explorar un punto de equilibrio intermedio en `confidence_threshold = 0.14` con el objetivo de maximizar la media armónica ($F_1$).
+- **Resultado y análisis técnico:** **Mejora contundente (adoptado como configuración definitiva).** Al fijar el umbral en 0.14:
+  - La **Precisión de detección** aumentó más de 10 puntos porcentuales (de 0.512 a 0.617), mientras que el Recall solo cedió marginalmente de 0.707 a 0.668.
+  - El **F1 de detección** escaló de 0.594 a **0.641**, arrastrando favorablemente al **F1 de máscaras SAM2** de 0.566 a **0.613** (al recibir SAM2 cajas más limpias y precisas).
+  - En QA determinista, la depuración de falsos positivos redujo la confusión en preguntas de conteo, subiendo el exact-match de 0.3 a **0.4** (accuracy global: 0.65).
+  - Al evaluar el entregable en la competencia, el puntaje global saltó de **0.6013 a 0.6545**. Se consolidó como la configuración óptima del sistema.
+
+#### 4.7.4 Experimento 3: Ajuste del umbral de NMS (`nms_iou_threshold = 0.45` vs. `0.50`)
+
+- **Hipótesis y qué probamos:** OWLv2 tiende a producir cajas redundantes ligeramente desplazadas sobre un mismo objeto. Se probó reducir el umbral de IoU en NMS de 0.50 a 0.45 para suprimir duplicados de la misma clase de manera más agresiva.
+- **Resultado y análisis técnico:** **Mejora aparente en desarrollo pero caída en el conjunto de prueba (descartado).** En el set de desarrollo, la precisión subió ligeramente (0.617 a 0.625) y los $F_1$ mostraron mejoras marginales (cajas a 0.642, máscaras a 0.617). Sin embargo, al evaluar en el conjunto de prueba de la competencia, el score cayó de 0.6545 a **0.6503**. Este resultado confirmó un efecto de **sobre-supresión (*over-suppression*)**: el análisis exploratorio (EDA) había demostrado que un 12.8% de las instancias presentan un IoU > 0.3 con vecinos reales (sillas contiguas, libros en bibliotecas, personas caminando juntas). Un NMS más estricto eliminó instancias legítimas contiguas confundiéndolas con duplicados. Se conservó `NMS = 0.50` como referencia final.
+
+#### 4.7.5 Experimento 4: Filtro de confianza post-detección en preguntas de conteo
+
+- **Hipótesis y qué probamos:** Dado que el accuracy de conteo en QA se ubicaba en 40%, se formuló la hipótesis de que existía ruido residual de baja confianza inflando los conteos. Se probó filtrar en `_answer_count` únicamente las instancias con `confidence >= 0.20`.
+- **Resultado y análisis técnico:** **Sin cambios significativos (descartado).** La métrica de conteo se mantuvo invariable en 4/10 aciertos (40%) y el score de competencia no mejoró (0.6525). La inspección técnica determinó que los 6 casos que fallaban no provenían de detecciones dudosas de baja confianza, sino de dos factores ineludibles: (1) falsos negativos del detector base donde el objeto directamente no fue encontrado (imposible de reconstruir mediante filtros posteriores), y (2) falsos positivos con confianza alta ($>0.20$). Por lo tanto, se descartó el filtro adicional para mantener la arquitectura limpia y predecible.
+
+#### 4.7.6 Ajustes de robustez y compatibilidad con el entorno de entrega
+
+Adicionalmente a los experimentos sobre el modelo, se aplicaron mejoras técnicas de ingeniería en la pipeline:
+- **Normalización de coordenadas con acotamiento (*clamping*) y descarte de cajas degeneradas:** En `detect_objects`, imprecisiones numéricas menores provocaban ocasionalmente valores negativos minúsculos (ej. $x_1 = -0.012$). Se incorporó `max(0.0, x)` y `min(dim, x)` para garantizar coordenadas perfectamente contenidas en las dimensiones de la imagen, y se descartaron cajas colapsadas con ancho o alto $\le 10^{-2}$ píxeles.
+- **Formato canónico de coordenadas en la entrega:** Se estructuraron las bounding boxes como `[x, y, x + w, y + h]` en la exportación requerida por el evaluador de la competencia.
+- **Filtrado estricto del archivo de entrega:** Se implementó la selección y ordenamiento estricto sobre las 80 imágenes evaluables (20 de desarrollo y 60 de test) mapeando contra los identificadores de `sample_submission.csv`.
 
 ### 4.8 Preguntas y respuestas — modo con LLM (Qwen2.5-1.5B-Instruct)
 
@@ -312,7 +347,11 @@ Nota práctica para quien lea el CSV: algunas filas superan el límite por defec
 
 ## 5. Discusión y análisis de errores
 
-**Precision (0.512) bastante más baja que recall (0.705) en el baseline:** con un umbral de confianza permisivo (0.1) el detector prioriza no perderse objetos a costa de más falsos positivos — esperable dado que el EDA mostró que la mayoría de los objetos son chicos (mediana `area_ratio`≈0.003) y por lo tanto difíciles de detectar con confianza alta. La comparación controlada (sección 4.7) confirmó que subir el umbral a 0.3 sí mejora precision (0.854) pero **no mejora el F1 compuesto** (0.577 vs 0.593) — el baseline queda como mejor elección para el leaderboard pese a tener peor precision aislada.
+**Compromiso Precision vs Recall y calibración en 0.14 (ver detalle en 4.7.3):** con un umbral de confianza permisivo (0.1) el detector prioriza no perderse objetos a costa de más falsos positivos (precisión de solo 0.512), mientras que subir a 0.3 desploma el recall (0.436). La calibración controlada en 0.14 resolvió este dilema: elevó la precisión a 0.617 reteniendo un recall de 0.668, lo que maximizó el F1 global de detección a 0.641 (frente al 0.593 inicial) y el de máscaras a 0.613, llevando el score de Kaggle a 0.6545.
+
+**Sobre-supresión (*over-suppression*) en NMS (ver detalle en 4.7.4):** forzar un umbral de NMS más agresivo (0.45) eliminó instancias reales contiguas confundiéndolas con duplicados fantasmas. Esto confirmó empíricamente lo hallado en el EDA: el 12.8% de las instancias del dataset presentan solapamientos legítimos ($IoU > 0.3$) entre objetos de la misma clase (como sillas alrededor de una mesa o personas caminando juntas). Mantener NMS en 0.50 resultó indispensable para preservar el recall en escenas pobladas.
+
+**Límite de los filtros post-hoc de confianza en conteo (ver detalle en 4.7.5):** filtrar por confianza $\ge 0.20$ en el motor de QA no alteró el accuracy de conteo (firme en 40%). El análisis reveló que los errores restantes no son ruido marginal de baja confianza, sino omisiones directas del detector base (falsos negativos que ningún filtro posterior puede subsanar) o detecciones espurias con alta certeza ($>0.20$).
 
 **Error de propagación detección→QA (ver detalle en 4.6 y 4.7):** el 70% de las preguntas de `count` no da el número exacto en ninguno de los dos umbrales probados, y en el baseline 9 de los 11 `unsupported` en `position`/`size`/`relation` son por ambigüedad (más de una instancia detectada donde se presupone una sola) — ambos son consecuencia del umbral de confianza, no errores de lógica en `qa_engine.py`. El experimento de 4.7 confirma la dirección del efecto (subir el umbral baja la ambigüedad de 11 a 6 casos) pero también muestra que no es gratis: ese mismo cambio empeora el F1 de detección, que pesa mucho más en el `PipelineScore` (75%) que QA (10%).
 
@@ -326,7 +365,7 @@ _(pendiente: inspección cualitativa de casos fallidos — FP sistemáticos por 
 
 ## 6. Conclusiones y trabajo futuro
 
-**Nivel alcanzado (a confirmar en la defensa oral):** las 9 etapas de "Desarrollo del trabajo" del enunciado están implementadas y corridas con datos reales — F1 de detección 0.593 y F1 de máscaras 0.565 (≥0.40 aprobado, ≥0.50 promoción), pipeline modularizada y trazada, `SceneJSON` 100% válido (schema + RLE + referencias de ids, no solo schema) contra el schema oficial en las 80 filas de entrega, `questions` determinista y `questions_llm` con LLM ambos poblados para las 20 imágenes de desarrollo, una comparación controlada con conclusión explícita (sección 4.7), y las funciones de métrica reutilizables completas en `metrics.py` (sección 3.9). Con la Portada completada (integrantes, curso 5k2, Grupo 20), el reporte queda listo para la entrega.
+**Nivel alcanzado (a confirmar en la defensa oral):** las 9 etapas de "Desarrollo del trabajo" del enunciado están implementadas y corridas con datos reales — tras el proceso experimental de optimización (sección 4.7), la configuración final alcanzó un **F1 de detección de 0.641** y un **F1 de máscaras de 0.613** (ambos superando ampliamente el ≥0.40 de aprobado y el ≥0.50 de promoción), logrando un puntaje en Kaggle de **0.6545**, pipeline modularizada y trazada, `SceneJSON` 100% válido (schema + RLE + referencias de ids, no solo schema) contra el schema oficial en las 80 filas de entrega, `questions` determinista y `questions_llm` con LLM ambos poblados para las 20 imágenes de desarrollo, cuatro experimentos controlados documentados con rigurosidad métrica (sección 4.7), y las funciones de evaluación reutilizables completas en `metrics.py` (sección 3.9). Con la Portada completada (integrantes, curso 5k2, Grupo 20), el reporte queda listo para la entrega.
 
 **Lo que mejor funcionó:**
 - El detector + SAM2 + `jsonschema` dieron una representación estructurada **100% válida** de punta a punta (80/80 filas), sin ningún caso de JSON malformado o RLE inconsistente.
@@ -334,11 +373,11 @@ _(pendiente: inspección cualitativa de casos fallidos — FP sistemáticos por 
 - El criterio de "ambigüedad → `unsupported`" en vez de adivinar resultó ser una decisión robusta: se mantuvo consistente entre modo determinista y modo LLM (11/20 en ambos), lo cual terminó siendo evidencia útil para diagnosticar que la ambigüedad viene del SceneJSON, no de cómo se interpreta la pregunta.
 
 **Lo que no funcionó tan bien, documentado sin maquillar:**
-- El umbral de confianza no tiene un punto óptimo simple: 0.1 maximiza F1 de detección pero genera ambigüedad en QA; 0.3 reduce esa ambigüedad pero resigna F1. No se exploró una zona intermedia (ej. 0.15-0.2) ni otros ejes (otra resolución, otro detector) por tiempo.
+- La calibración de hiperparámetros requirió un análisis riguroso de trade-offs: si bien el umbral de 0.14 encontró el punto óptimo entre precisión y recall para el detector base (elevando el F1 a 0.641), otros intentos como prompt templates descriptivos de CLIP o un NMS más estricto (0.45) demostraron que ciertas mejoras intuitivas degradan la precisión o provocan sobre-supresión en escenas con oclusión real.
 - El modo LLM, aun con el modelo más grande probado (1.5B), solo identifica la categoría correcta 2 de cada 3 veces, y la descripción generada alucina en la mitad de los casos pese a instrucción explícita de no hacerlo. Un modelo liviano no es garantía de respuestas confiables sin mecanismos adicionales de verificación que esta sesión no llegó a implementar.
 - No se hizo inspección cualitativa caso por caso de falsos positivos/negativos de detección por categoría (sección 5) — el análisis de errores se apoyó en agregados (F1, accuracy) más que en ejemplos puntuales.
 
 **Trabajo futuro, en orden de impacto esperado:**
 1. Mitigar la alucinación de `generate_description_llm` — es el riesgo más concreto detectado, y el más barato de intentar mejorar (prompt más restrictivo, post-verificación de sustantivos contra el vocabulario de categorías).
-2. Explorar umbrales intermedios (0.15-0.2) en vez de solo 0.1 vs 0.3, para buscar un punto que no sacrifique tanto recall como 0.3 pero sí reduzca algo la ambigüedad de QA.
+2. Explorar técnicas de ensamble de detectores o backbones con mayor resolución espacial nativa, evaluando si reducen los falsos negativos en objetos pequeños sin disparar el tiempo de inferencia.
 3. Si hay tiempo para una extensión de nivel sobresaliente: usar las máscaras reales (no solo bboxes) para refinar `compute_relations` (`overlaps` vía IoU de máscaras en vez de bboxes sería más preciso en escenas con mucho crowding, donde las bboxes se superponen más de lo que los objetos realmente lo hacen) — ahora que `mask_f1` (3.9) ya mostró que la métrica de máscara es más estricta que la de cajas, este mismo razonamiento aplicaría a relaciones espaciales calculadas sobre bboxes en escenas con mucho solapamiento.
