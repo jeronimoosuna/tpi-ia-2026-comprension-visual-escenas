@@ -1,7 +1,5 @@
 # TPI IA 2026 — Comprensión visual de escenas
 
-> Reporte técnico en construcción. Se va completando a medida que avanza el desarrollo (ver commits del repo para el detalle incremental).
-
 ## 1. Portada
 
 - **Competencia:** TPI IA 2026 Primavera — Comprensión Visual de Escenas (Kaggle, `tpi-ia-2026-primavera-comprension-visual-de-escenas`).
@@ -29,6 +27,10 @@ Dataset de desarrollo: 120 imágenes anotadas en formato COCO, derivado de LVIS 
 **Política LVIS (`neg_category_ids` / `not_exhaustive_category_ids`).** 74/120 imágenes tienen categorías negativas verificadas (top: `sofa`, `clock`, `ski`) y 36/120 tienen categorías no-exhaustivas (`strap`, `boat`, `car`, `book`). **Implicancia directa para la métrica de detección:** hay que excluir sistemáticamente estas combinaciones imagen-categoría del cálculo de FP/FN (implementado en `src/metrics.detection_f1`, ver sección 3).
 
 ## 3. Metodología
+
+### 3.0 Reproducibilidad y fijación de semillas
+
+Para garantizar la reproducibilidad exacta de los experimentos, la evaluación y la ejecución de la pipeline de inferencia, se fijaron de forma explícita las semillas pseudoaleatorias en `0` en todas las librerías con componentes estocásticos (`random.seed(0)`, `np.random.seed(0)` y `torch.manual_seed(0)`). Asimismo, en el módulo de generación e interpretación con LLM (`qa_llm.py`), se configuró `do_sample=False` al momento de llamar a `generate()`, asegurando una decodificación determinista (*greedy search*) que elimina fuentes de variabilidad en las respuestas estructuradas y descripciones.
 
 ### 3.1 Detección (open-vocabulary)
 
@@ -148,12 +150,13 @@ Corrida sobre las 120 imágenes de desarrollo (`scripts/run_detection.py`, resul
 | **F1** | **0.593** |
 | TP / FP / FN | 1262 / 1203 / 528 |
 | Predicciones ignoradas (categoría no verificada) | 4828 |
+| **Cobertura de evaluación** | **33.8%** (2465 evaluables / 7293 totales) |
 | Predicciones totales | 7293 |
 | Tiempo total / promedio por imagen | 366.7s / 3.1s (CPU local, sin batching) |
 
 El F1 baseline (0.593) ya supera el umbral de **promoción** (≥0.50) y el de **aprobado** (≥0.40) definidos en el enunciado, calculado localmente sobre el conjunto anotado de desarrollo con IoU≥0.5 y la política LVIS.
 
-De las 7293 predicciones, **4828 (66%) se ignoran** por corresponder a categorías "no verificadas" en esa imagen (ni positivas ni negativas) — es esperable, porque el detector consulta las 120 categorías en cada imagen aunque la mayoría no aplique a esa escena en particular. La política LVIS evita que eso infle artificialmente los falsos positivos.
+La **cobertura de evaluación alcanzada es del 33.8%** (2465 predicciones evaluables sobre 7293 totales): **4828 predicciones (66.2%) se ignoran** por corresponder a categorías "no verificadas" en esa imagen (ni positivas ni negativas). Esto es esperable, porque el detector consulta las 120 categorías en cada imagen aunque la mayoría no aplique a esa escena en particular. La política LVIS evita que eso infle artificialmente los falsos positivos.
 
 ### 4.2 Segmentación — SAM2.1 tiny sobre las 7293 cajas detectadas
 
@@ -361,7 +364,10 @@ Nota práctica para quien lea el CSV: algunas filas superan el límite por defec
 
 **Bug de validación encontrado y corregido (ver detalle en 3.9):** la primera versión de `scene_json_consistency` no detectaba RLE corrupto porque `segmentation.rle_to_mask` es tolerante por diseño (nunca falla si `counts` no suma `height×width`, simplemente deja el resto de la máscara en `False`). Se encontró al testear la función con un caso roto a propósito, antes de confiar en ella para validar el entregable final — se corrigió agregando una verificación explícita de la suma antes de decodificar.
 
-_(pendiente: inspección cualitativa de casos fallidos — FP sistemáticos por categoría, FN concentrados en objetos muy chicos o muy ocluidos)_
+**Inspección cualitativa de casos correctos y fallidos:**
+- **Falsos Positivos sistemáticos:** El caso más pronunciado se observa en la categoría `pole` (poste), donde el detector emitió **508 predicciones** en todo el conjunto de desarrollo, una sobre-predicción masiva frente a las únicas **22 anotaciones reales de Ground Truth** (distribuidas en 4 imágenes). Debido a que el vocabulario incluye `pole` y se opera con umbrales permisivos para maximizar recall, OWLv2 activa señal ante cualquier línea vertical del entorno (marcos de aberturas, patas de mesas o postes lejanos fuera de foco). Sobre-detecciones análogas se observan en `table` (151 predicciones vs 24 GT) y `shirt` (149 vs 16), donde superficies planas y prendas son segmentadas repetidamente.
+- **Falsos Negativos concentrados en objetos pequeños:** El 71% de las instancias presenta `area_ratio < 0.01` (mediana 0.0028). Los falsos negativos se concentran predominantemente en accesorios y detalles minúsculos (`earring`, `strap`, `doorknob`): la resolución de patches 16x16 del vision transformer (aun a 960x960) diluye el contraste necesario, dejando las probabilidades por debajo del umbral de confianza.
+- **Oclusiones y crowding en SAM2:** En el 12.8% de objetos con IoU > 0.3 con su vecino más próximo, las cajas se solapan severamente, lo que habitualmente lleva a SAM2 a extender la máscara sobre el objeto adyacente o fragmentarla, afectando el cálculo de centroides y predicados espaciales (`overlaps`).
 
 ## 6. Conclusiones y trabajo futuro
 
@@ -375,7 +381,7 @@ _(pendiente: inspección cualitativa de casos fallidos — FP sistemáticos por 
 **Lo que no funcionó tan bien, documentado sin maquillar:**
 - La calibración de hiperparámetros requirió un análisis riguroso de trade-offs: si bien el umbral de 0.14 encontró el punto óptimo entre precisión y recall para el detector base (elevando el F1 a 0.641), otros intentos como prompt templates descriptivos de CLIP o un NMS más estricto (0.45) demostraron que ciertas mejoras intuitivas degradan la precisión o provocan sobre-supresión en escenas con oclusión real.
 - El modo LLM, aun con el modelo más grande probado (1.5B), solo identifica la categoría correcta 2 de cada 3 veces, y la descripción generada alucina en la mitad de los casos pese a instrucción explícita de no hacerlo. Un modelo liviano no es garantía de respuestas confiables sin mecanismos adicionales de verificación que esta sesión no llegó a implementar.
-- No se hizo inspección cualitativa caso por caso de falsos positivos/negativos de detección por categoría (sección 5) — el análisis de errores se apoyó en agregados (F1, accuracy) más que en ejemplos puntuales.
+- La inspección cualitativa de errores (sección 5) evidenció patrones claros: sobre-detección en clases geométricas simples (`pole` con 508 predicciones vs 22 GT) y falsos negativos en objetos minúsculos (`strap`, `earring`), justificando la adopción de backbones de mayor resolución o pirámides de características para trabajo futuro.
 
 **Trabajo futuro, en orden de impacto esperado:**
 1. Mitigar la alucinación de `generate_description_llm` — es el riesgo más concreto detectado, y el más barato de intentar mejorar (prompt más restrictivo, post-verificación de sustantivos contra el vocabulario de categorías).
