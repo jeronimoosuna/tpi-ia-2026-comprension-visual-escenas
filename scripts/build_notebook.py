@@ -62,7 +62,12 @@ cells.append(md("""
 
 **Competencia:** `tpi-ia-2026-primavera-comprension-visual-de-escenas` (Kaggle, Cátedra Inteligencia Artificial, UTN)
 
-**Integrantes:** _(completar)_ · **Nro. de grupo:** _(completar)_
+**Curso:** 5k2 · **Nro. de grupo:** Grupo 20
+**Integrantes:**
+- Sisca, Tomas Nazareno (89398)
+- Ladux, Carlos Agustín (86199)
+- Carreras, Nicolás (90023)
+- Osuna, Jerónimo (90015)
 
 Esta notebook implementa de punta a punta la pipeline *imagen → detección → segmentación → SceneJSON → preguntas (determinista + LLM)*, siguiendo las 9 etapas de "Desarrollo del trabajo" del enunciado. El reporte técnico completo (decisiones, experimentos, análisis de errores) está en `REPORTE.md` del repositorio del grupo; acá se resume lo esencial de cada decisión junto al código real que la implementa.
 

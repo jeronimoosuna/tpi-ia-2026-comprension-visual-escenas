@@ -6,8 +6,13 @@
 
 - **Competencia:** TPI IA 2026 Primavera — Comprensión Visual de Escenas (Kaggle, `tpi-ia-2026-primavera-comprension-visual-de-escenas`).
 - **Cátedra:** Inteligencia Artificial, UTN.
-- **Integrantes:** _(completar)_
-- **Nro. de grupo:** _(completar, para el nombre de entrega `TPI_IA_2026P_[nro_de_grupo]`)_
+- **Integrantes:**
+  - Sisca, Tomas Nazareno (89398)
+  - Ladux, Carlos Agustín (86199)
+  - Carreras, Nicolás (90023)
+  - Osuna, Jerónimo (90015)
+- **Curso:** 5k2
+- **Nro. de grupo:** Grupo 20 (nombre de entrega: `TPI_IA_2026P_20` / `TPI_IA_2026P_grupo20`)
 
 ## 2. Análisis del dataset
 
@@ -321,7 +326,7 @@ _(pendiente: inspección cualitativa de casos fallidos — FP sistemáticos por 
 
 ## 6. Conclusiones y trabajo futuro
 
-**Nivel alcanzado (a confirmar en la defensa oral):** las 9 etapas de "Desarrollo del trabajo" del enunciado están implementadas y corridas con datos reales — F1 de detección 0.593 y F1 de máscaras 0.565 (≥0.40 aprobado, ≥0.50 promoción), pipeline modularizada y trazada, `SceneJSON` 100% válido (schema + RLE + referencias de ids, no solo schema) contra el schema oficial en las 80 filas de entrega, `questions` determinista y `questions_llm` con LLM ambos poblados para las 20 imágenes de desarrollo, una comparación controlada con conclusión explícita (sección 4.7), y las funciones de métrica reutilizables completas en `metrics.py` (sección 3.9). Lo que falta para dar por "cerrado" el reporte es solo completar la Portada (integrantes, nro. de grupo).
+**Nivel alcanzado (a confirmar en la defensa oral):** las 9 etapas de "Desarrollo del trabajo" del enunciado están implementadas y corridas con datos reales — F1 de detección 0.593 y F1 de máscaras 0.565 (≥0.40 aprobado, ≥0.50 promoción), pipeline modularizada y trazada, `SceneJSON` 100% válido (schema + RLE + referencias de ids, no solo schema) contra el schema oficial en las 80 filas de entrega, `questions` determinista y `questions_llm` con LLM ambos poblados para las 20 imágenes de desarrollo, una comparación controlada con conclusión explícita (sección 4.7), y las funciones de métrica reutilizables completas en `metrics.py` (sección 3.9). Con la Portada completada (integrantes, curso 5k2, Grupo 20), el reporte queda listo para la entrega.
 
 **Lo que mejor funcionó:**
 - El detector + SAM2 + `jsonschema` dieron una representación estructurada **100% válida** de punta a punta (80/80 filas), sin ningún caso de JSON malformado o RLE inconsistente.
